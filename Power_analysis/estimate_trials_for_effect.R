@@ -1,4 +1,29 @@
 
+#===============================================================================================#
+# This script runs power analyses based on effect sizes from our previous experiments with
+# constant and variable foreperiods. We focus on computing the number of trials needed to 
+# reproduced those earlier findings. Fr each type of design, we simulate 1) how the number of trials
+# influences the magnitude of effect sizes and 2) how it influences the power/false positive rate
+# for each effect.
+
+
+# We sample (with replacement) trials from each participant in each condition and foreperiod duration
+# and run ANOVAs on the data consisting of these sampled trials to extract partial eta squared values.
+
+# We transform our partial eta squared to f2 using formulas from FIND REFERENCE and
+# use the pwr.f2.test function from the pwr package to compute power.
+
+# For constant foreperiods, we compute power for the foreperiod effect and false positive rates
+# for the condition effect and the interaction between condition and foreperiod.
+
+# For variable foreperiods, we compute pwr for the foreperiod and condition effects using the 
+# method above. For interactions, since the pwr.f2.test function is not meant to use with
+# interaction tests, we simulate p-values and compute the rate of significant p-values to 
+# compute power.
+#===============================================================================================#
+
+
+
 # Load necessary packages
 library(tidyverse)
 library(magrittr)
@@ -55,7 +80,7 @@ trPower <- function(dataset, ntrials, variable, dfVar, dfRes) {
   varPower <- pwr.f2.test(u = dfVar, v = dfRes, f2 = varf2)$power
 }
 
-# Function to get p-value to compute rate of false positives
+# Function to get p-value to compute rate of false positives and simulation-based power
 trSampleP <- function(dataset, ntrials, variable) {
   sampDS <- dataset %>%
     group_by(ID, foreperiod, condition) %>% # Group by ID, FP, condition
@@ -124,8 +149,14 @@ trSamplePInteraction <- function(dataset, ntrials) {
 # Load data
 data2 <- read_csv('E:/Post-doc_data/Action_foreperiod/Action_fp_con/Analysis/data2.csv')
 
-#========================== 2. Simulate ES with varying number of trials ==========================
-ntrList <- 8:16
+# Check remaining n of trials
+data2 %>%
+  group_by(ID, foreperiod, condition) %>%
+  #group_by(ID) %>%
+  summarise(n())
+
+#================== 2.1. Simulate ES with varying number of trials ==============
+ntrList <- 45:60
 nSim <- 1000
 esByTr <- vector(mode = "list", length = length(ntrList))
 
@@ -142,20 +173,26 @@ options(options_defaults)
 
 # Scatterplot
 jpeg("./Analysis/Plots/trials_to_effect.jpeg", width = 1200, height = 1000)
-par(mfrow = c(3,3))
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
   esToPlot <- esByTr[[thisTr]]
-  plot(1:nSim, esToPlot)
+  plot(1:nSim, esToPlot,
+       xlab = "Simulation",
+       ylab = "Effect size")
 }
 par(graphical_defaults)
 dev.off()
 
 # Histograms
 jpeg("./Analysis/Plots/trials_to_effect_2.jpeg", width = 1200, height = 1000)
-par(mfrow = c(3,3))
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
   esToPlot <- esByTr[[thisTr]]
-  hist(esToPlot, xlim = c(0,0.15), breaks = 20)
+  hist(esToPlot,
+       xlim = c(0.3, 0.8),
+       breaks = 20,
+       main = paste("n of trials =", ntrList[thisTr], sep = " "),
+       xlab = "Effect size")
 }
 par(graphical_defaults)
 dev.off()
@@ -169,11 +206,13 @@ esUpCIs <- sapply(esByTr, function(x) {
 esLowCIs <- sapply(esByTr, function(x) {
   mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
 })
-plotCI(ntrList, esMeans, ui = esUpCIs, li = esLowCIs)
+plotCI(ntrList, esMeans, ui = esUpCIs, li = esLowCIs,
+       xlab = "n of trials",
+       ylab = "Mean effect size")
 dev.off()
 
-#====================== 3. Simulate power =============================
-ntrList <- 8:16
+#====================== 2.2. Simulate power =============================
+ntrList <- 45:60
 nSim <- 1000
 
 # Values for pwr function
@@ -188,31 +227,33 @@ FPEsByTr <- vector(mode = "list", length = length(ntrList))
 options(dplyr.summarise.inform = FALSE)
 for(thisTr in 1:length(FPEsByTr)) {
   nTrials <- ntrList[thisTr]
-  EsList <- vector(mode = "numeric", length = nSim)
+  PwrList <- vector(mode = "numeric", length = nSim)
   for(iSim in 1:nSim) {
-    EsList[iSim] <- trPower(data2, nTrials, "foreperiod", dfFP, dfRes)
+    PwrList[iSim] <- trPower(data2, nTrials, "foreperiod", dfFP, dfRes)
   }
-  FPEsByTr[[thisTr]] <- EsList
+  FPPwrByTr[[thisTr]] <- PwrList
 }
 options(options_defaults)
 
 # Scatterplot
-par(mfrow = c(3,3))
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
-  EsToPlot <- FPEsByTr[[thisTr]]
-  plot(1:nSim, EsToPlot,
+  PwrToPlot <- FPPwrByTr[[thisTr]]
+  plot(1:nSim, PwrToPlot,
        ylim = c(0, 1),
-       main = paste(ntrList[thisTr], "trials"))
+       main = paste(ntrList[thisTr], "trials"),
+       xlab = "simulation",
+       ylab = "Power")
   abline(h = 0.05, lty = 3)
 }
 par(graphical_defaults)
 
 # Plot mean power
-powerFPMeans <- sapply(FPEsByTr, mean)
-powerFPUpCIs <- sapply(FPEsByTr, function(x) {
+powerFPMeans <- sapply(FPPwrByTr, mean)
+powerFPUpCIs <- sapply(FPPwrByTr, function(x) {
   mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
 })
-powerFPLowCIs <- sapply(FPEsByTr, function(x) {
+powerFPLowCIs <- sapply(FPPwrByTr, function(x) {
   mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
 })
 jpeg("./Power_analysis/mean_power_foreperiod_con.jpeg", width = 1200, height = 1000)
@@ -223,7 +264,7 @@ plotCI(ntrList, powerFPMeans, ui = powerFPUpCIs, li = powerFPLowCIs,
 dev.off()
 
 # Plot of high betas
-FPbetas <- lapply(FPEsByTr, function(x) {1-x})
+FPbetas <- lapply(FPPwrByTr, function(x) {1-x})
 
 FPhighbetas <- sapply(FPbetas, function(x) {length(x[x > 0.1])/length(x)})
 
@@ -236,9 +277,9 @@ plot(ntrList, FPhighbetas, pch = 16,
 lines(ntrList, FPhighbetas)
 dev.off()
 
-#======================== 4. Simulate false positive rate ===============
+#================= 2.3. Simulate false positive rate ===============
 
-#========== 4.1. Condition ============
+#========== 2.3.1. Condition ============
 condPByTr <- vector(mode = "list", length = length(ntrList))
 
 options(dplyr.summarise.inform = FALSE)
@@ -277,7 +318,7 @@ lines(ntrList, condFalsePosRate)
 dev.off()
 options(options_defaults)
 
-#========== 4.2. Interaction ============
+#========== 2.3.2. Interaction ============
 interactPByTr <- vector(mode = "list", length = length(ntrList))
 
 options(dplyr.summarise.inform = FALSE)
@@ -326,30 +367,90 @@ data2var <- read_csv('E:/Post-doc_data/Action_foreperiod/Action_foreperiod_exp0_
 # Check remaining n of trials
 data2var %>%
   group_by(ID, foreperiod, condition) %>%
+  #group_by(ID) %>%
   summarise(n())
 
-#========================== 2. Simulate ES with varying number of trials ==========================
-ntrList <- 14:30#8:16
+#========================== 3.1. Simulate ES with varying number of trials ==========================
+ntrList <- 45:60#8:16
 nSim <- 1000
-esByTr <- vector(mode = "list", length = length(ntrList))
+
+#======================== 3.1.1. Foreperiod effect ===================================
+FPEsByTr <- vector(mode = "list", length = length(ntrList))
 
 options(dplyr.summarise.inform = FALSE)
-for(thisTr in 1:length(esByTr)) {
+for(thisTr in 1:length(FPEsByTr)) {
   ntrials <- ntrList[thisTr]
-  esList <- vector(mode = "numeric", length = nSim)
+  FPEsList <- vector(mode = "numeric", length = nSim)
   for(iSim in 1:nSim) {
-    esList[iSim] <- trSampleES(data2var, ntrials, c("foreperiod", "condition"))
+    FPEsList[iSim] <- trSampleES(data2var, ntrials, "foreperiod")
   }
-  esByTr[[thisTr]] <- esList
+  FPEsByTr[[thisTr]] <- FPEsList
 }
 options(options_defaults)
 
 # Scatterplot
-jpeg("./Analysis/Plots/trials_to_var_effect.jpeg", width = 1200, height = 1000)
-par(mfrow = c(4,5))
+jpeg("./Power_analysis/trials_to_var_fp_effect_scatter.jpeg", width = 1200, height = 1000)
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
-  esToPlot <- esByTr[[thisTr]]
-  plot(1:nSim, esToPlot,
+  FPEsToPlot <- FPEsByTr[[thisTr]]
+  plot(1:nSim, FPEsToPlot,
+       main = paste(ntrList[thisTr], "trials", sep = " "),
+       xlab = "Simulation",
+       ylab = "Effect size")
+}
+par(graphical_defaults)
+dev.off()
+
+# Histograms
+jpeg("./Power_analysis/trials_to_var_fp_effect_hist.jpeg", width = 1200, height = 1000)
+par(mfrow = c(4,4))
+for(thisTr in 1:length(ntrList)) {
+  FPEsToPlot <- FPEsByTr[[thisTr]]
+  hist(FPEsToPlot,
+       xlim = c(min(unlist(FPEsByTr)), max(unlist(FPEsByTr))),
+       breaks = 20,
+       main = paste(ntrList[thisTr], "trials", sep = " "),
+       xlab = "Effect size")
+}
+par(graphical_defaults)
+dev.off()
+
+# Lineplots of means and CIs
+jpeg("./Power_analysis/trials_to_var_fp_effect_means.jpeg", width = 1200, height = 1000)
+FPEsMeans <- sapply(FPEsByTr, mean)
+FPEsUpCIs <- sapply(FPEsByTr, function(x) {
+  mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
+})
+FPEsLowCIs <- sapply(FPEsByTr, function(x) {
+  mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
+})
+plotCI(ntrList, FPEsMeans, ui = FPEsUpCIs, li = FPEsLowCIs,
+       xlab = "Number of trials",
+       ylab = "Mean effect size",
+       main = "Effect size by n of trials in cell")
+lines(ntrList, FPEsMeans)
+dev.off()
+
+#======================== 3.1.2. Condition effect ===============================
+condEsByTr <- vector(mode = "list", length = length(ntrList))
+
+options(dplyr.summarise.inform = FALSE)
+for(thisTr in 1:length(condEsByTr)) {
+  ntrials <- ntrList[thisTr]
+  condEsList <- vector(mode = "numeric", length = nSim)
+  for(iSim in 1:nSim) {
+    condEsList[iSim] <- trSampleES(data2var, ntrials, "condition")
+  }
+  condEsByTr[[thisTr]] <- condEsList
+}
+options(options_defaults)
+
+# Scatterplot
+jpeg("./Power_analysis/trials_to_var_cond_effect_scatter.jpeg", width = 1200, height = 1000)
+par(mfrow = c(4,4))
+for(thisTr in 1:length(ntrList)) {
+  condEsToPlot <- condEsByTr[[thisTr]]
+  plot(1:nSim, condEsToPlot,
        main = paste(ntrList[thisTr], "trials", sep = " "),
        xlab = "Sim",
        ylab = "ES")
@@ -358,36 +459,95 @@ par(graphical_defaults)
 dev.off()
 
 # Histograms
-jpeg("./Analysis/Plots/trials_to_var_effect_2.jpeg", width = 1200, height = 1000)
-par(mfrow = c(4,5))
+jpeg("./Power_analysis/trials_to_var_cond_effect_hist.jpeg", width = 1200, height = 1000)
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
-  esToPlot <- esByTr[[thisTr]]
-  hist(esToPlot,
-       xlim = c(0.1,0.8),
+  condEsToPlot <- condEsByTr[[thisTr]]
+  hist(condEsToPlot,
+       xlim = c(min(unlist(condEsByTr)), max(unlist(condEsByTr))),
        breaks = 20,
        main = paste(ntrList[thisTr], "trials", sep = " "),
-       xlab = "ES")
+       xlab = "Effect size")
 }
 par(graphical_defaults)
 dev.off()
 
 # Lineplots of means and CIs
-jpeg("./Analysis/Plots/trials_to_var_effect_3.jpeg", width = 1200, height = 1000)
-esMeans <- sapply(esByTr, mean)
-esUpCIs <- sapply(esByTr, function(x) {
+jpeg("./Power_analysis/trials_to_var_cond_effect_means.jpeg", width = 1200, height = 1000)
+condEsMeans <- sapply(condEsByTr, mean)
+condEsUpCIs <- sapply(condEsByTr, function(x) {
   mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
 })
-esLowCIs <- sapply(esByTr, function(x) {
+condEsLowCIs <- sapply(condEsByTr, function(x) {
   mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
 })
-plotCI(ntrList, esMeans, ui = esUpCIs, li = esLowCIs,
+plotCI(ntrList, condEsMeans, ui = condEsUpCIs, li = condEsLowCIs,
        xlab = "Number of trials",
        ylab = "Mean effect size",
        main = "Effect size by n of trials in cell")
+lines(ntrList, condEsMeans)
 dev.off()
 
-#====================== 3.3. Simulate power =============================
-ntrList <- 14:30
+#======================== 3.1.3. Interaction ===============================
+interactEsByTr <- vector(mode = "list", length = length(ntrList))
+
+options(dplyr.summarise.inform = FALSE)
+for(thisTr in 1:length(interactEsByTr)) {
+  ntrials <- ntrList[thisTr]
+  interactEsList <- vector(mode = "numeric", length = nSim)
+  for(iSim in 1:nSim) {
+    interactEsList[iSim] <- trSampleEsInteraction(data2var, ntrials)
+  }
+  interactEsByTr[[thisTr]] <- interactEsList
+}
+options(options_defaults)
+
+# Scatterplot
+jpeg("./Power_analysis/trials_to_var_interact_effect_scatter.jpeg", width = 1200, height = 1000)
+par(mfrow = c(4,4))
+for(thisTr in 1:length(ntrList)) {
+  interactEsToPlot <- interactEsByTr[[thisTr]]
+  plot(1:nSim, interactEsToPlot,
+       main = paste(ntrList[thisTr], "trials", sep = " "),
+       xlab = "Sim",
+       ylab = "Effect size")
+}
+par(graphical_defaults)
+dev.off()
+
+# Histograms
+jpeg("./Power_analysis/trials_to_var_interact_effect_hist.jpeg", width = 1200, height = 1000)
+par(mfrow = c(4,4))
+for(thisTr in 1:length(ntrList)) {
+  interactEsToPlot <- interactEsByTr[[thisTr]]
+  hist(interactEsToPlot,
+       xlim = c(min(unlist(interactEsByTr)), max(unlist(interactEsByTr))),
+       breaks = 20,
+       main = paste(ntrList[thisTr], "trials", sep = " "),
+       xlab = "Effect size")
+}
+par(graphical_defaults)
+dev.off()
+
+# Lineplots of means and CIs
+jpeg("./Power_analysis/trials_to_var_interact_effect_means.jpeg", width = 1200, height = 1000)
+interactEsMeans <- sapply(interactEsByTr, mean)
+interactEsUpCIs <- sapply(interactEsByTr, function(x) {
+  mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
+})
+interactEsLowCIs <- sapply(interactEsByTr, function(x) {
+  mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
+})
+plotCI(ntrList, interactEsMeans, ui = interactEsUpCIs, li = interactEsLowCIs,
+       xlab = "Number of trials",
+       ylab = "Mean effect size",
+       main = "Effect size for interaction by n of trials in cell")
+lines(ntrList, interactEsMeans)
+dev.off()
+
+
+#====================== 3.2. Simulate power =============================
+ntrList <- 45:60
 nSim <- 1000
 
 # Values for pwr function
@@ -396,52 +556,52 @@ dfCondition = 1
 dfFP = 1
 dfRes = totalN - 1 - dfCondition - dfFP
 
-#============= 3.3.1. Foreperiod ==============
-FPEsByTr <- vector(mode = "list", length = length(ntrList))
+#============= 3.2.1. Foreperiod ==============
+FPPwrByTr <- vector(mode = "list", length = length(ntrList))
 
 options(dplyr.summarise.inform = FALSE)
-for(thisTr in 1:length(FPEsByTr)) {
+for(thisTr in 1:length(FPPwrByTr)) {
   nTrials <- ntrList[thisTr]
-  EsList <- vector(mode = "numeric", length = nSim)
+  PwrList <- vector(mode = "numeric", length = nSim)
   for(iSim in 1:nSim) {
-    EsList[iSim] <- trPower(data2var, nTrials, "foreperiod", dfFP, dfRes)
+    PwrList[iSim] <- trPower(data2var, nTrials, "foreperiod", dfFP, dfRes)
   }
-  FPEsByTr[[thisTr]] <- EsList
+  FPPwrByTr[[thisTr]] <- PwrList
 }
 options(options_defaults)
 
 # Scatterplot
-par(mfrow = c(4,5))
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
-  EsToPlot <- FPEsByTr[[thisTr]]
-  plot(1:nSim, EsToPlot,
-       ylim = c(0, 1),
+  PwrToPlot <- FPPwrByTr[[thisTr]]
+  plot(1:nSim, PwrToPlot,
+       ylim = c(0.9, 1),
        main = paste(ntrList[thisTr], "trials"))
   abline(h = 0.05, lty = 3)
 }
 par(graphical_defaults)
 
 # Plot mean power
-powerFPMeans <- sapply(FPEsByTr, mean)
-powerFPUpCIs <- sapply(FPEsByTr, function(x) {
+powerFPMeans <- sapply(FPPwrByTr, mean)
+powerFPUpCIs <- sapply(FPPwrByTr, function(x) {
   mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
 })
-powerFPLowCIs <- sapply(FPEsByTr, function(x) {
+powerFPLowCIs <- sapply(FPPwrByTr, function(x) {
   mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
 })
-jpeg("./Power_analysis/mean_power_foreperiod_con.jpeg", width = 1200, height = 1000)
+jpeg("./Power_analysis/mean_power_foreperiod_var.jpeg", width = 1200, height = 1000)
 plotCI(ntrList, powerFPMeans, ui = powerFPUpCIs, li = powerFPLowCIs,
        xlab = "Number of trials",
        ylab = "Mean power",
-       main = "Statistical power for foreperiod effect by n of trials ")
+       main = "Statistical power for FP effect by n of trials n cell")
 dev.off()
 
 # Plot of high betas
-FPbetas <- lapply(FPEsByTr, function(x) {1-x})
+FPbetas <- lapply(FPPwrByTr, function(x) {1-x})
 
 FPhighbetas <- sapply(FPbetas, function(x) {length(x[x > 0.1])/length(x)})
 
-jpeg("./Power_analysis/high_betas_foreperiod_con.jpeg", width = 1200, height = 1000)
+jpeg("./Power_analysis/high_betas_foreperiod_var.jpeg", width = 1200, height = 1000)
 plot(ntrList, FPhighbetas, pch = 16,
      ylim = c(0, 0.01),
      main = "Proportion of beta > 0.1 for foreperiod effect",
@@ -451,25 +611,25 @@ lines(ntrList, FPhighbetas)
 dev.off()
 
 
-#========== 3.3.2. Condition ============
-condEsByTr <- vector(mode = "list", length = length(ntrList))
+#========== 3.2.2. Condition ============
+condPwrByTr <- vector(mode = "list", length = length(ntrList))
 
 options(dplyr.summarise.inform = FALSE)
-for(thisTr in 1:length(condPByTr)) {
+for(thisTr in 1:length(condPwrByTr)) {
   nTrials <- ntrList[thisTr]
-  PList <- vector(mode = "numeric", length = nSim)
+  PwrList <- vector(mode = "numeric", length = nSim)
   for(iSim in 1:nSim) {
-    EsList[iSim] <- trPower(data2var, nTrials, "condition", dfFP, dfRes)
+    PwrList[iSim] <- trPower(data2var, nTrials, "condition", dfFP, dfRes)
   }
-  condEsByTr[[thisTr]] <- EsList
+  condPwrByTr[[thisTr]] <- PwrList
 }
 options(options_defaults)
 
 # Scatterplot
-par(mfrow = c(4,5))
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
-  esToPlot <- condEsByTr[[thisTr]]
-  plot(1:nSim, esToPlot,
+  PwrToPlot <- condPwrByTr[[thisTr]]
+  plot(1:nSim, PwrToPlot,
        ylim = c(0, 1),
        main = paste(ntrList[thisTr], "trials"))
   abline(h = 0.05, lty = 3)
@@ -477,11 +637,11 @@ for(thisTr in 1:length(ntrList)) {
 par(graphical_defaults)
 
 # Plot mean power
-powerCondMeans <- sapply(condEsByTr, mean)
-powerCondUpCIs <- sapply(condEsByTr, function(x) {
+powerCondMeans <- sapply(condPwrByTr, mean)
+powerCondUpCIs <- sapply(condPwrByTr, function(x) {
   mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
 })
-powerCondLowCIs <- sapply(condEsByTr, function(x) {
+powerCondLowCIs <- sapply(condPwrByTr, function(x) {
   mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
 })
 jpeg("./Power_analysis/mean_power_condition_var.jpeg", width = 1200, height = 1000)
@@ -492,7 +652,7 @@ plotCI(ntrList, powerCondMeans, ui = powerCondUpCIs, li = powerCondLowCIs,
 dev.off()
 
 # Plot of high betas
-condbetas <- lapply(condEsByTr, function(x) {1-x})
+condbetas <- lapply(condPwrByTr, function(x) {1-x})
 
 condhighbetas <- sapply(condbetas, function(x) {length(x[x > 0.1])/length(x)})
 
@@ -506,55 +666,39 @@ lines(ntrList, condhighbetas)
 dev.off()
 
 #========== 3.3.3 Interaction ============
-interactEsByTr <- vector(mode = "list", length = length(ntrList))
+interactPByTr <- vector(mode = "list", length = length(ntrList))
 
 options(dplyr.summarise.inform = FALSE)
-for(thisTr in 1:length(interactEsByTr)) {
+for(thisTr in 1:length(interactPByTr)) {
   ntrials <- ntrList[thisTr]
-  esList <- vector(mode = "numeric", length = nSim)
+  PList <- vector(mode = "numeric", length = nSim)
   for(iSim in 1:nSim) {
-    EsList[iSim] <- trSampleEsInteraction(data2var, ntrials)
+    PList[iSim] <- trSamplePInteraction(data2var, ntrials)
   }
-  interactEsByTr[[thisTr]] <- EsList
+  interactPByTr[[thisTr]] <- PList
 }
 options(options_defaults)
 
 # Scatterplot
-par(mfrow = c(4,5))
+par(mfrow = c(4,4))
 for(thisTr in 1:length(ntrList)) {
-  esToPlot <- interactEsByTr[[thisTr]]
-  plot(1:nSim, esToPlot,
+  pToPlot <- interactPByTr[[thisTr]]
+  plot(1:nSim, pToPlot,
        ylim = c(0, 1),
        main = paste(ntrList[thisTr], "trials"))
   abline(h = 0.05, lty = 3)
 }
 par(graphical_defaults)
 
-# Plot mean power
-powerInteractMeans <- sapply(interactEsByTr, mean)
-powerInteractUpCIs <- sapply(interactEsByTr, function(x) {
-  mean(x) + 1.96 * (sd(x)/sqrt(length(x)))
-})
-powerInteractLowCIs <- sapply(interactEsByTr, function(x) {
-  mean(x) - 1.96 * (sd(x)/sqrt(length(x)))
-})
-jpeg("./Power_analysis/mean_power_interact_var.jpeg", width = 1200, height = 1000)
-plotCI(ntrList, powerInteractMeans, ui = powerInteractUpCIs, li = powerInteractLowCIs,
-       xlab = "Number of trials",
-       ylab = "Mean power",
-       main = "Statistical power for interaction by n of trials")
-dev.off()
+# Plot of power for interaction
+interactSigRate <- sapply(interactPByTr, function(x) {length(x[x < 0.05])/length(x)})
 
-# Plot of high betas
-interactbetas <- lapply(interactEsByTr, function(x) {1-x})
-
-interacthighbetas <- sapply(interactbetas, function(x) {length(x[x > 0.1])/length(x)})
-
-jpeg("./Power_analysis/high_betas_condition_var.jpeg", width = 1200, height = 1000)
-plot(ntrList, interacthighbetas, pch = 16,
+jpeg("./Power_analysis/pwr_interaction_var_60-80.jpeg", width = 1200, height = 1000)
+plot(ntrList, interactSigRate, pch = 16,
      #ylim = c(0, 0.01),
-     main = "Proportion of beta > 0.1 for interaction",
-     xlab = "Number of trials per cell",
-     ylab = "Proportion of high betas")
-lines(ntrList, interacthighbetas)
+     main = "Proportion of significant results for interaction by n of trials in cell",
+     xlab = "Number of trials in cell",
+     ylab = "Proportion of positive results")
+lines(ntrList, interactSigRate)
 dev.off()
+
