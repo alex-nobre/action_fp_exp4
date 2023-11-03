@@ -27,12 +27,6 @@ data <- data %>%
                              (condition == 'external' & countBalance %in% c('2', '4')) ~ '1')) %>%
   mutate(condTestPos = as.factor(condTestPos))
 
-# Create numeric versions of foreperiod and FP n-1
-data$numFP <- as.numeric(as.character(data$FP))
-data$numOneBackFP <- as.numeric(as.character(data$oneBackFP))
-
-# Quadratic term for numForeperiod
-data$squaredNumFP <- data$numFP^2
 
 # Create column for previous orientation and for comparison of current and previous orientations
 data <- data %>%
@@ -53,14 +47,6 @@ dataAll <- data
 data <- data %>%
   filter(!is.na(RT), Acc == 1)
 
-# Create log10 of continuous indenpendent variables
-data$numLogFP <- log10(data$numFP)
-data$logFP <- as.factor(data$numLogFP)
-data$logOneBackFP <- log10(data$numOneBackFP)
-
-dataAll$numLogFP <- log10(dataAll$numFP)
-dataAll$logFP <- as.factor(dataAll$numLogFP)
-dataAll$logOneBackFP <- log10(dataAll$numOneBackFP)
 
 # Remove extreme values
 data <- data %>%
@@ -68,15 +54,15 @@ data <- data %>%
   filter(RT > 0.15)
 
 # Transform RT to reduce skew
-data$logRT <- ifelse(!is.na(data$RT), log10(data$RT), NA) # log-transform
-data$invRT <- ifelse(!is.na(data$RT), 1/data$RT, NA)
+data$logRT <- log10(data$RT) # log-transform
+data$invRT <- 1/data$RT
 
 
 # Trimming
 data2 <- data %>%
   group_by(participant) %>%
-  mutate(RTzscore=ifelse(!is.na(RT), compute_zscore(RT), NA),
-         logRTzscore=ifelse(!is.na(RT), compute_zscore(logRT), NA)) %>%
+  mutate(RTzscore = compute_zscore(RT),
+         logRTzscore = compute_zscore(logRT)) %>%
   filter(abs(logRTzscore) < 3) %>%
   ungroup()
 
@@ -88,56 +74,27 @@ data <- data %>%
   #filter(abs(logRTzscore) < 3) %>%
   ungroup()
 
-# Create scaled predictors
-data$scaledNumFP <- scale(data$numFP, scale = FALSE)[,1]
-data$squaredScaledNumFP <- data$scaledNumFP^2
-data$scaledNumOneBackFP <- scale(data$numOneBackFP, scale = FALSE)[,1]
-
-data2$scaledNumFP <- scale(data2$numFP, scale = FALSE)[,1]
-data2$squaredScaledNumFP <- data2$scaledNumFP^2
-data2$scaledNumOneBackFP <- scale(data2$numOneBackFP, scale = FALSE)[,1]
-
-dataAll$scaledNumFP <- scale(dataAll$numFP, scale = FALSE)[,1]
-dataAll$squaredScaledNumFP <- dataAll$scaledNumFP^2
-dataAll$scaledNumOneBackFP <- scale(dataAll$numOneBackFP, scale = FALSE)[,1]
-
 
 # Average data
 summaryData <- data %>%
-  group_by(participant, FP, logFP, condition, FPType, conFPDur,
+  group_by(participant, FP, condition, FPType, conFPDur,
            orientation, prevOri, seqOri,
            oneBackFP, block, countBalance, condTestPos) %>%
   summarise(meanRT = mean(RT),
             meanLogRT = mean(logRT),
             meanRTzscore = mean(RTzscore),
             meanInvRT = mean(invRT)) %>%
-  ungroup() %>%
-  mutate(numFP = as.numeric(as.character(FP)),
-         numOneBackFP = as.numeric(as.character(oneBackFP)),
-         numLogFP = as.numeric(as.character(logFP))) %>%
-  mutate(squaredNumFP = numFP^2,
-         squaredNumLogFP = numLogFP^2,
-         scaledNumFP = scale(numFP)[,1],
-         squaredScaledNumFP = scaledNumFP^2,
-         scaledNumOneBackFP = scale(numOneBackFP)[,1])
+  ungroup()
 
 summaryData2 <- data2 %>%
-  group_by(participant, FP, logFP, condition, FPType, conFPDur,
+  group_by(participant, FP, condition, FPType, conFPDur,
            orientation, prevOri, seqOri,
            oneBackFP, block, countBalance, condTestPos) %>%
   summarise(meanRT = mean(RT),
             meanLogRT = mean(logRT),
             meanRTzscore = mean(RTzscore),
             meanInvRT = mean(invRT)) %>%
-  ungroup() %>%
-  mutate(numFP = as.numeric(as.character(FP)),
-         numOneBackFP = as.numeric(as.character(oneBackFP)),
-         numLogFP = as.numeric(as.character(logFP))) %>%
-  mutate(squaredNumFP = numFP^2,
-         squaredNumLogFP = numLogFP^2,
-         scaledNumFP = scale(numFP)[,1],
-         squaredScaledNumFP = scaledNumFP^2,
-         scaledNumOneBackFP = scale(numOneBackFP)[,1])
+  ungroup()
 
 
 summaryDataAll <- dataAll %>%
@@ -145,13 +102,7 @@ summaryDataAll <- dataAll %>%
            oneBackFP) %>%
   summarise(meanRT = mean(RT),
             meanAcc = mean(Acc)) %>%
-  ungroup() %>%
-  mutate(numFP = as.numeric(as.character(FP)),
-         numOneBackFP = as.numeric(as.character(oneBackFP))) %>%
-  mutate(squaredNumFP = numFP^2,
-         scaledNumFP = scale(numFP)[,1],
-         squaredScaledNumFP = scaledNumFP^2,
-         scaledNumOneBackFP = scale(numOneBackFP)[,1])
+  ungroup()
 
 #write_csv(data, "./Analysis/data.csv")
 #write_csv(data2, "./Analysis/data2.csv")

@@ -1,10 +1,4 @@
 
-
-#================================================================================#
-# Changes
-# Run analyses on scaled predictors
-#================================================================================#
-
 # Load necessary packages
 
 # Read and process data
@@ -102,22 +96,16 @@ ggplot(data=summaryData,
   scale_color_manual(values=c('blue','orange','green', 'magenta')) +
   labs(title='RT by block split by counterbalancing order')
 
-ggplot(data=summaryData,
-       aes(x=condTestPos,
-           y=meanRT,
-           color=condition))+
-  stat_summary(fun='mean',geom='point')+
-  stat_summary(fun='mean',geom='line',size=1,aes(group=condition))+
-  stat_summary(fun.data='mean_cl_boot',width=0.2,geom='errorbar')+
-  theme(plot.title=element_text(size = rel(2), hjust = 0.5),
-        panel.grid.major=element_blank(),
-        panel.grid.minor=element_blank(),
-        panel.background=element_blank(),
-        axis.text = element_text(size = rel(1.5)),
-        axis.title = element_text(size = rel(1.5)))+
-  scale_color_manual(values=c('orange','blue')) +
-  labs(title='RT by block split by counterbalancing order')
 
+ggplot(data=data2 %>% filter(countBalance %in% c("3","4"), block == 0),
+       aes(x=RT,
+           fill=FPType))+
+  geom_histogram()+
+  facet_wrap(~participant*condition)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank()) +
+  scale_fill_manual(values=c('orange','blue'))
 
 # 1.4.1. Plot RT by foreperiod by participant to check for strange patterns
 
@@ -132,7 +120,7 @@ ggplot(data = summaryData2,
         panel.grid.minor = element_blank(),
         panel.background = element_blank()) +
   facet_wrap(~participant) +
-  scale_color_viridis(discrete = TRUE)
+  scale_color_manual(values = c("green", "magenta"))
 
 # Check for influence of external fixation duration
 ggplot(data=filter(data,condition=='external'),
@@ -424,6 +412,30 @@ indHistograms
 qqmath(~RT|participant, data=data2)
 qqmath(~invRT|participant, data=data2)
 
+indHistograms <- ggplot(data=filter(data2, FPType == "constant"),
+                        aes(x=RT,
+                            fill = condition))+
+  geom_histogram()+
+  facet_wrap(~participant*condition)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank()) +
+  scale_fill_manual(values=c('orange','blue')) +
+  labs(title = "Histograms of RT by participant")
+indHistograms
+
+# Average RT by participant and condition
+ggplot(data = data2,
+       aes(x = participant,
+           y = RT,
+           color = condition)) +
+  stat_summary(fun = "mean", geom = "point") +
+  stat_summary(fun = "mean", geom = "line", aes(group = condition)) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") +
+  scale_color_manual(values = c("orange", "blue")) +
+  facet_wrap(~ FPType) +
+  labs(title = "mean RT by participant, condition and FPType")
+
 # Check for correlations between mean and sd for RT
 RTstats <- data2 %>%
   group_by(participant) %>%
@@ -433,9 +445,12 @@ RTstats <- data2 %>%
 
 ggplot(data=RTstats,
        aes(x=meanRT,
-           y=sdRT)) +
+           y=sdRT,
+           color = participant)) +
   geom_point() +
-  geom_smooth(method='lm')
+  geom_smooth(method='lm') +
+  labs(title = "correlation mean x sd RT") +
+  scale_color_viridis(discrete = TRUE)
 
 
 # Do the same by participant, condition and foreperiod
@@ -503,6 +518,73 @@ ggplot2::ggsave("./Analysis/Plots/RT_by_condition.png",
                 rt_by_condition,
                 width = 8.5,
                 height = 5.7)
+
+# Several plots of condition by testing position
+ggplot(data=summaryData,
+       aes(x=condTestPos,
+           y=meanRT,
+           color=condition))+
+  stat_summary(fun='mean',geom='point')+
+  stat_summary(fun='mean',geom='line',size=1,aes(group=condition))+
+  stat_summary(fun.data='mean_cl_boot',width=0.2,geom='errorbar')+
+  theme(plot.title=element_text(size = rel(2), hjust = 0.5),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.background=element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5)))+
+  scale_color_manual(values=c('orange','blue')) +
+  labs(title='RT by block split by counterbalancing order')
+
+ggplot(data=summaryData2,
+       aes(x=FP,
+           y=meanRT,
+           color=FPType))+
+  stat_summary(fun='mean',geom='point')+
+  stat_summary(fun='mean',geom='line',size=1,aes(group=FPType))+
+  stat_summary(fun.data='mean_cl_boot',width=0.2,geom='errorbar')+
+  theme(plot.title=element_text(size = rel(2), hjust = 0.5),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.background=element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5)))+
+  #scale_color_manual(values=c('orange','blue')) +
+  facet_grid(condition ~ countBalance)
+
+ggplot(data=summaryData2 %>% filter(countBalance %in% c("2","3"), block == 0),
+       aes(x=FP,
+           y=meanRT,
+           color=condition))+
+  stat_summary(fun='mean',geom='point')+
+  stat_summary(fun='mean',geom='line',size=1,aes(group=condition))+
+  stat_summary(fun.data='mean_cl_boot',width=0.2,geom='errorbar')+
+  theme(plot.title=element_text(size = rel(2), hjust = 0.5),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.background=element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5)))+
+  #scale_color_manual(values=c('orange','blue')) +
+  facet_wrap(~participant*FPType) +
+  labs(title = "by participant x fp type")
+
+ggplot(data=summaryData2 %>% filter(countBalance %in% c("3","4"), block == 0),
+       aes(x=FP,
+           y=meanRT,
+           color=condition))+
+  stat_summary(fun='mean',geom='point')+
+  stat_summary(fun='mean',geom='line',size=1,aes(group=condition))+
+  stat_summary(fun.data='mean_cl_boot',width=0.2,geom='errorbar')+
+  theme(plot.title=element_text(size = rel(2), hjust = 0.5),
+        panel.grid.major=element_blank(),
+        panel.grid.minor=element_blank(),
+        panel.background=element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5))) +
+  facet_wrap(~ participant)
+#scale_color_manual(values=c('orange','blue'))
+labs(title = "participants x fp type")
 
 # using LogRT
 ggplot(data = summaryData2,
@@ -723,13 +805,13 @@ ggsave("./Analysis/Plots/seqeff.png",
        height = 5.7)
 
 # Separated by condition
-ggplot(data = summaryData2,
-       aes(x = foreperiod,
+ggplot(data = filter(summaryData2, FPType == "variable"),
+       aes(x = FP,
            y = meanRT,
            color = oneBackFP)) +
   stat_summary(fun = "mean", geom = "point", size = 1.5) +
   stat_summary(fun = "mean", geom = "line", linewidth = 0.6, aes(group = oneBackFP)) +
-  stat_summary(fun.data = "mean_cl_boot", size = 0.3, width = 0.05, geom = "errorbar") +
+  stat_summary(fun.data = "mean_cl_boot", linewidth = 0.3, width = 0.05, geom = "errorbar") +
   labs(x = "Foreperiod",
        y = "Mean RT",
        color = "FP n-1") +
@@ -739,7 +821,7 @@ ggplot(data = summaryData2,
         axis.text = element_text(size = rel(1.5)),
         axis.title = element_text(size = rel(1.5))) +
   facet_wrap(~condition) +
-  scale_color_manual(values = c('blue','orange','green', 'magenta'))
+  scale_color_viridis(discrete = TRUE, end = 0.90)
 ggsave("./Analysis/Plots/seqeff_by_condition.png",
        width = 8.5,
        height = 5.7)

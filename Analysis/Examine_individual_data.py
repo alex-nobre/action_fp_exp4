@@ -57,10 +57,14 @@ len(subData.query('preRespGiven == 1'))
 # Plot RT by external fixation duration and action trigger latency
 plt.figure()
 plt.scatter(subData['extFixDur'].values, subData['RT'].values, s = 10)
+plt.xlabel("External fixation duration (s)")
+plt.ylabel("RT (s)")
 plt.show()
 
 plt.figure()
 plt.scatter(subData['actionTrigLatency'].values, subData['RT'].values, s = 10)
+plt.xlabel("Action Trigger Latency (s)")
+plt.ylabel("RT (s)")
 plt.show()
 
 # Keep only trials with correct responses to analyze RT
