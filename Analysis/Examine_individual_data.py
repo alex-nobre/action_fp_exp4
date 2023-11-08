@@ -10,13 +10,24 @@ import matplotlib.pyplot as plt
 sns.set_theme()
 
 subFileName = input('Enter File Name:\n')
-subFile = './Data/' + subFileName
+subFile = './Data/Data_files/' + subFileName
 
 # Read data
-subData = pd.read_table(subFile, skiprows = [0,1,2,3,4,5,6])
+subData = pd.read_csv(subFile)
 
-# Remove practice trials
-subData = subData[(subData['FPType'] != 'practice')]
+# Remove unnecessary columns
+subData = subData[['participant', 'date', 'Counterbalance group', 'Handedness', 'block', 'condition', 'orientation', 'foreperiod', 'action_trigger.rt', 'extFixationDuration', 'corrAns', 'Response.keys', 'Response.corr', 'Response.rt']]
+
+# Rename condition columns for clarity
+subData=subData.rename(columns={'Response.corr':'Acc'})
+subData=subData.rename(columns={'Response.rt':'RT'})
+subData=subData.rename(columns={'Counterbalance group':'Counterbalance'})
+
+# Remove empty rows and practice trials
+subData = subData[(subData['condition'] != 'practice') & (subData['orientation'].notnull())]
+
+# Create columns for n-1 and n-2 foreperiods by block
+subData['oneBackFP'] = subData.groupby(['block'])['foreperiod'].shift(1)
 
 # Check n and % of errors
 print('Total errors:')
@@ -39,36 +50,22 @@ print(len(subData[(subData['condition']=='external') & (subData['Acc']==0)])/
 print(len(subData[(subData['condition']=='action') & (subData['Acc']==0)])/
       len(subData[subData['condition']=='action'])*100)
       
-# Errors by FP Type
-print('Errors by FP type:')
-print(len(subData[(subData['FPType']=='constant') & (subData['conFPDur']=='short') & (subData['Acc']==0)])/
-      len(subData[(subData['FPType']=='constant') & (subData['conFPDur']=='short')])*100)
-      
-print(len(subData[(subData['FPType']=='constant') & (subData['conFPDur']=='long') & (subData['Acc']==0)])/
-      len(subData[(subData['FPType']=='constant') & (subData['conFPDur']=='long')])*100)
-      
-print(len(subData[(subData['FPType']=='variable') & (subData['Acc']==0)])/
-      len(subData[(subData['FPType']=='variable')])*100)
-
-# Inspect n of trials with premature responses
-print('N of premature responses:')
-len(subData.query('preRespGiven == 1'))
 
 # Plot RT by external fixation duration and action trigger latency
 plt.figure()
-plt.scatter(subData['extFixDur'].values, subData['RT'].values, s = 10)
+plt.scatter(subData['extFixationDuration'].values, subData['RT'].values, s = 10)
 plt.xlabel("External fixation duration (s)")
 plt.ylabel("RT (s)")
 plt.show()
 
 plt.figure()
-plt.scatter(subData['actionTrigLatency'].values, subData['RT'].values, s = 10)
+plt.scatter(subData['action_trigger.rt'].values, subData['RT'].values, s = 10)
 plt.xlabel("Action Trigger Latency (s)")
 plt.ylabel("RT (s)")
 plt.show()
 
 # Keep only trials with correct responses to analyze RT
-subData = subData[(subData['RT'].notnull()) & (subData['Acc'] == 1) & (subData['preRespGiven'] == 0)]
+subData = subData[(subData['RT'].notnull()) & (subData['Acc'] == 1)]
 
 # Remove outliers
 print('notclean: ' + str(len(subData)))
@@ -76,10 +73,21 @@ subData = subData[(subData['RT'] < 1) & (subData['RT'] > 0.1)]
 print('clean: ' + str(len(subData)))
 
 
-summaryData=subData.groupby(['FP','condition','FPType','block'],
+summaryData=subData.groupby(['foreperiod','condition'],
                            as_index=False)[['RT','Acc']].mean()
 
-summaryPlot=sns.catplot(x="FP", y="RT",col = 'FPType', kind = 'point',
+summaryPlot=sns.catplot(x="foreperiod", y="RT", kind = 'point',
                           data=summaryData)
+
+plt.show()
+
+plt.figure()
+summaryPlot=sns.catplot(x="foreperiod", y="RT", hue = "condition", kind = 'point',
+                          data=summaryData)
+plt.show()                        
+                          
+plt.figure()                          
+histPlot = sns.histplot(x = "RT", data = subData, bins = 30)                          
                           
 plt.show()
+
