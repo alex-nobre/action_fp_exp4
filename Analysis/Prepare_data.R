@@ -14,19 +14,10 @@ data <- read_csv("./Analysis/dataActionFPAll.csv")
 
 # Coerce to factors
 data <- data %>%
-  mutate(across(c(participant, block, condition, FPType, conFPDur, orientation, FP, oneBackFP, countBalance, handedness), as_factor))
+  mutate(across(c(participant, Counterbalance, Handedness, block, condition, orientation, foreperiod, oneBackFP), as_factor))
 
 data$condition <- data$condition %>%
   fct_relevel(c("external", "action"))
-
-# Column for testing position based on counterbalancing
-data <- data %>%
-  mutate(condTestPos = case_when((condition == 'action' & countBalance %in% c('1', '3')) ~ '1',
-                             (condition == 'external' & countBalance %in% c('1', '3')) ~ '2',
-                             (condition == 'action' & countBalance %in% c('2', '4')) ~ '2',
-                             (condition == 'external' & countBalance %in% c('2', '4')) ~ '1')) %>%
-  mutate(condTestPos = as.factor(condTestPos))
-
 
 # Create column for previous orientation and for comparison of current and previous orientations
 data <- data %>%
@@ -34,14 +25,19 @@ data <- data %>%
          prevOri = lag(orientation)) %>%
   mutate(seqOri = as.factor(seqOri),
          prevOri = as.factor(prevOri))
-  
+
+# Create column for trial number
+data <- data %>%
+  group_by(participant) %>%
+  mutate(trial = seq(1,n())) %>%
+  ungroup()
 
 # Remove trials without n-1 FP values (i.e., first of each block)
 data <- data %>%
-  filter((FPType == 'variable' & !is.na(oneBackFP)) | (FPType == 'constant'))
+  filter(!is.na(oneBackFP))
 
 # Save data with error trials to assess accuracy
-dataAll <- data
+dataAcc <- data
 
 # Keep only trials with correct responses to analyze RT
 data <- data %>%
@@ -74,34 +70,48 @@ data <- data %>%
   #filter(abs(logRTzscore) < 3) %>%
   ungroup()
 
+###############################################################
+# Add delay data
+###############################################################
+# delayData <- read_csv("./Analysis/delayDataAll.csv") %>%
+#   mutate(across(c(participant, condition), as_factor)) %>%
+#   select(-condition)
+# 
+# data <- inner_join(data, delayData, by = c("trial", "participant"))
+# data2 <- inner_join(data2, delayData, by = c("trial", "participant"))
+# dataAcc <- inner_join(dataAcc, delayData, by = c("trial", "participant"))
+
+################################################################
 
 # Average data
 summaryData <- data %>%
-  group_by(participant, FP, condition, FPType, conFPDur,
+  group_by(participant, foreperiod, condition,
            orientation, prevOri, seqOri,
-           oneBackFP, block, countBalance, condTestPos) %>%
+           oneBackFP, block, Counterbalance, Handedness) %>%
   summarise(meanRT = mean(RT),
             meanLogRT = mean(logRT),
             meanRTzscore = mean(RTzscore),
-            meanInvRT = mean(invRT)) %>%
+            meanInvRT = mean(invRT)) %>% #,
+            #meanDelay = mean(delay)) %>%
   ungroup()
 
 summaryData2 <- data2 %>%
-  group_by(participant, FP, condition, FPType, conFPDur,
+  group_by(participant, foreperiod, condition,
            orientation, prevOri, seqOri,
-           oneBackFP, block, countBalance, condTestPos) %>%
+           oneBackFP, block, Counterbalance, Handedness) %>%
   summarise(meanRT = mean(RT),
             meanLogRT = mean(logRT),
             meanRTzscore = mean(RTzscore),
-            meanInvRT = mean(invRT)) %>%
+            meanInvRT = mean(invRT)) %>% #,
+            #meanDelay = mean(delay)) %>%
   ungroup()
 
 
-summaryDataAll <- dataAll %>%
-  group_by(participant,FP,condition,FPType,conFPDur,
-           oneBackFP) %>%
+summaryDataAll <- dataAcc %>%
+  group_by(participant, foreperiod, condition, oneBackFP, Counterbalance, Handedness) %>%
   summarise(meanRT = mean(RT),
-            meanAcc = mean(Acc)) %>%
+            meanAcc = mean(Acc)) %>% #,
+            #meanDelay = mean(delay)) %>%
   ungroup()
 
 #write_csv(data, "./Analysis/data.csv")

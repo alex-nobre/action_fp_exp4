@@ -6,11 +6,11 @@ import glob
 import os
 
 # File paths
-filesPath = '.\Data'
+filesPath = '.\Data\Data_files'
 gDrivePath = 'G:/My Drive/Post-doc/Projetos/Action_foreperiod/Experiment_4/Analysis/'
 
 # Find files
-FileList=glob.glob(filesPath + '/*.txt')
+FileList=glob.glob(filesPath + '/*.csv')
 FileList.sort()
 
 nFiles=int(len(FileList))
@@ -18,26 +18,33 @@ nFiles=int(len(FileList))
 dataActionFPAll=pd.DataFrame()
 
 for iFile,FileName in enumerate(FileList):
-    
-    #Get info for this file
-    fileInfo = pd.read_table(FileName, nrows = 4, skiprows = [0])
-    countBal = fileInfo.iloc[1][1]
-    hand = fileInfo.iloc[2][1]
+  
+    ID = FileName[18:21]
     
     # Read data
-    dataActionFP = pd.read_table(FileName, skiprows = [0,1,2,3,4,5,6])
+    subData = pd.read_csv(FileName)
     
-    # Remove practice trials
-    dataActionFP = dataActionFP[(dataActionFP['FPType'] != 'practice')]
+    # Remove unnecessary columns
+    subData = subData[['participant', 'date', 'Counterbalance group', 'Handedness', 'block', 'condition', 'orientation', 'foreperiod', 'action_trigger.rt', 'extFixationDuration', 'corrAns', 'Response.keys', 'Response.corr', 'Response.rt']]
     
-    # Create columns for counterbalancing order and handedness
-    dataActionFP['countBalance'] = countBal
-    dataActionFP['handedness'] = hand
+    # Rename condition columns for clarity
+    subData=subData.rename(columns={'Response.corr':'Acc'})
+    subData=subData.rename(columns={'Response.rt':'RT'})
+    subData=subData.rename(columns={'Counterbalance group':'Counterbalance'})
     
-    # Create column for FP n-1 by block
-    dataActionFP['oneBackFP'] = dataActionFP.groupby(['block'])['FP'].shift(1)
+    # Remove empty rows and practice trials
+    subData = subData[(subData['condition'] != 'practice') & (subData['orientation'].notnull())]
+
+    # Create columns for n-1 and n-2 foreperiods by block
+    subData['oneBackFP'] = subData.groupby(['block'])['foreperiod'].shift(1)
+    
+    # Replace participant's ID by three digits ID from file name
+    subData['participant']=ID
+    #cols = subData.columns.tolist()
+    #cols = cols[-1:] + cols[1:-1]
+    #subData = subData[cols]
        
-    dataActionFPAll=pd.concat([dataActionFPAll, dataActionFP], axis=0)    
+    dataActionFPAll=pd.concat([dataActionFPAll, subData], axis=0)    
 
 # Save to analysis directory
 dataActionFPAll.to_csv('./Analysis/'+'dataActionFPAll.csv', index = False)
