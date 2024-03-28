@@ -27,8 +27,8 @@ for file in fileList:
   subData=subData.rename(columns={'Response.rt':'RT'})
   subData=subData.rename(columns={'Counterbalance group':'Counterbalance'})
      
-  # Remove practice trials
-  subData = subData[(subData['condition'] != 'practice')]
+  # Remove empty rows and practice trials
+  subData = subData[(subData['condition'] != 'practice') & (subData['orientation'].notnull())]
     
   # ID
   participantID=set(subData['participant'].tolist()).pop()

@@ -25,12 +25,13 @@ for iFile,FileName in enumerate(FileList):
     subData = pd.read_csv(FileName)
     
     # Remove unnecessary columns
-    subData = subData[['participant', 'date', 'Counterbalance group', 'Handedness', 'block', 'condition', 'orientation', 'foreperiod', 'action_trigger.rt', 'extFixationDuration', 'corrAns', 'Response.keys', 'Response.corr', 'Response.rt']]
+    subData = subData[['participant', 'date', 'Counterbalance group', 'Handedness', 'block', 'condition', 'orientation', 'foreperiod', 'action_trigger.rt', 'extFixationDuration', 'ITIDuration', 'corrAns', 'Response.keys', 'Response.corr', 'Response.rt']]
     
     # Rename condition columns for clarity
     subData=subData.rename(columns={'Response.corr':'Acc'})
     subData=subData.rename(columns={'Response.rt':'RT'})
     subData=subData.rename(columns={'Counterbalance group':'Counterbalance'})
+    subData=subData.rename(columns={'ITIDuration':'ITI'})
     
     # Remove empty rows and practice trials
     subData = subData[(subData['condition'] != 'practice') & (subData['orientation'].notnull())]
