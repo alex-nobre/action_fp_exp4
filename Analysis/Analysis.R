@@ -405,13 +405,21 @@ options(options_defaults)
 #==========================================================================================#
 #================================ 2. Descriptive analysis ==================================
 #==========================================================================================#
+
+#====================== 2.1. RT =======================
+
+#=========== 2.1.1 By FPn and condition =============
 # Boxplots
-boxplots <- ggplot(data=summaryData2,
+boxplots <- ggplot(data = summaryData2 %>% 
+                     group_by(participant, foreperiod, condition) %>% 
+                     summarise(meanRT = mean(meanRT)),
                    aes(x=foreperiod,
                        y=meanRT,
                        fill=condition))+
+  geom_jitter(height = 0, width = 0.15, size = 3.1, alpha = 0.5, aes(color=condition)) +
   geom_boxplot()+
   scale_fill_manual(values=c('orange','blue'))+
+  scale_color_manual(values=c('orange','blue'))+
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         panel.background = element_blank())
@@ -419,12 +427,12 @@ boxplots <- ggplot(data=summaryData2,
 boxplots
 
 
-logBoxplots <- ggplot(data=summaryData,
+logBoxplots <- ggplot(data=summaryData2,
                       aes(x=foreperiod,
                           y=meanLogRT,
-                          color=condition))+
+                          fill=condition))+
   geom_boxplot()+
-  scale_color_manual(values=c('orange','blue'))+
+  scale_fill_manual(values=c('orange','blue'))+
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         panel.background = element_blank())
@@ -467,20 +475,10 @@ ggsave("./Analysis/Plots/ind_histograms.png",
        height = 6.7,
        width = 7)
 
+# QQ plots by participant
 qqmath(~RT|participant, data=data2)
 qqmath(~invRT|participant, data=data2)
 
-indHistograms <- ggplot(data=data2,
-                        aes(x=RT,
-                            fill = condition))+
-  geom_histogram()+
-  facet_wrap(~participant*condition)+
-  theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank()) +
-  scale_fill_manual(values=c('orange','blue')) +
-  labs(title = "Histograms of RT by participant")
-indHistograms
 
 # Average RT by participant and condition
 ggplot(data = data2,
@@ -488,10 +486,13 @@ ggplot(data = data2,
            y = RT,
            color = condition)) +
   stat_summary(fun = "mean", geom = "point") +
-  stat_summary(fun = "mean", geom = "line", aes(group = condition)) +
   stat_summary(fun.data = "mean_cl_boot", geom = "errorbar") +
   scale_color_manual(values = c("orange", "blue")) +
-  labs(title = "mean RT by participant and condition")
+  labs(title = "mean RT by participant and condition") +
+  theme(plot.title = element_text(hjust = 0.5),
+        panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank()) 
 
 # Check for correlations between mean and sd for RT
 RTstats <- data2 %>%
@@ -522,13 +523,14 @@ ggplot(data=RTstats_full,
            color = condition)) +
   geom_point() +
   geom_smooth(method='lm') +
-  scale_color_manual(values=c('orange','blue'))
+  scale_color_manual(values=c('orange','blue')) +
+  facet_wrap(~foreperiod)
 
 View(RTstats[which.max(RTstats$sdRT),])
 
 cor(RTstats_full$meanRT, RTstats_full$sdRT)
 
-# FP and condition by participant
+# Mean RT by FP and condition by participant
 rt_by_fp_cond_part <- ggplot(data = summaryData2,
                              aes(x = foreperiod,
                                  y = meanRT,
@@ -553,10 +555,13 @@ ggsave("./Analysis/Plots/rt_by_fp_cond_part.png",
 
 
 # FP and condition
-rt_by_condition <- ggplot(data = summaryData2,
+rt_by_condition <- ggplot(data = summaryData2 %>% 
+                            group_by(participant, foreperiod, condition) %>% 
+                            summarise(meanRT = mean(meanRT)),
                           aes(x = foreperiod,
                               y = meanRT,
                               color = condition)) +
+  geom_jitter(height = 0, width = 0.15, size = 3.1, alpha = 0.5) +
   stat_summary(fun = "mean", geom = "point") +
   stat_summary(fun = "mean", geom = "line", linewidth = 1, aes(group = condition)) +
   stat_summary(fun.data = "mean_cl_boot", width = 0.1, geom = "errorbar") +
@@ -575,45 +580,8 @@ ggplot2::ggsave("./Analysis/Plots/RT_by_condition.png",
                 height = 5.7)
 
 
-# FP and condition em português
-rt_by_condition_port <- ggplot(data = summaryData2 %>% 
-                                 group_by(participant, foreperiod, condition) %>% 
-                                 summarise(meanRT = mean(meanRT)),
-                          aes(x = foreperiod,
-                              y = meanRT,
-                              color = condition)) +
-  geom_jitter(height = 0, width = 0.15, size = 3.1, alpha = 0.5) +
-  stat_summary(fun = "mean", geom = "point") +
-  stat_summary(fun = "mean", geom = "line", linewidth = 3.9, aes(group = condition)) +
-  stat_summary(fun.data = "mean_cl_boot", linewidth = 3.7, width = 0.1, geom = "errorbar") +
-  labs(title = "Experimento 4",
-       x = "FP (s)", 
-       y = "TR Médio (s)",
-       color = "Condição") +
-  theme(plot.title = element_text(size = rel(2.0), hjust = 0.5, margin = margin(t = 0, r = 0, b = 25, l = 0)),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.title = element_text(size = rel(2.0)),
-        axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 2.75, l = 0)),
-        axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
-        axis.text = element_text(size = rel(1.7)),
-        legend.title = element_text(size = rel(1.8)),
-        legend.text = element_text(size = rel(1.6)),
-        legend.key = element_blank(),
-        legend.box.spacing = unit(0, "pt"),
-        legend.margin = margin(5.5, 5.5, 5.5, 1)) +
-  scale_color_manual(values = c("orange", "blue"), labels = c("External", "Action"))
-
-ggplot2::ggsave("./Analysis/Plots/RT_by_condition_port.tiff",
-                rt_by_condition_port,
-                width = 25,
-                height = 16.66,
-                units = "cm")
-
-
 # Several plots of condition by testing position
-ggplot(data=summaryData,
+ggplot(data=summaryData2,
        aes(x=condTestPos,
            y=meanRT,
            color=condition))+
@@ -694,19 +662,58 @@ ggplot(data = summaryData2,
   scale_color_manual(values = c("orange","blue")) +
   facet_wrap(~ID)
 
-ggplot(data = summaryData2,
-       aes(x = foreperiod,
-           y = meanLogRT,
-           color = condition)) +
+
+# SD by FP and condition
+sd_by_condition <- ggplot(data = data2 %>%
+                            group_by(participant, foreperiod, condition) %>%
+                            summarise(sdRT = sd(RT)),
+                          aes(x = foreperiod,
+                              y = sdRT,
+                              color = condition)) +
   stat_summary(fun = "mean", geom = "point") +
   stat_summary(fun = "mean", geom = "line", linewidth = 1, aes(group = condition)) +
-  stat_summary(fun.data = "mean_cl_boot", width = 0.2, geom = "errorbar") +
-  theme(panel.grid.major = element_blank(), 
+  stat_summary(fun.data = "mean_cl_boot", width = 0.1, geom = "errorbar") +
+  labs(title = "RT by FP and condition",
+       x = "Foreperiod (s)", 
+       y = "SD RT (s)",
+       color = "Condition") +
+  theme(plot.title = element_text(size = 14, hjust = 0.5),
+        panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         panel.background = element_blank()) +
-  scale_color_manual(values = c("orange","blue")) +
-  facet_wrap(~ID)
+  scale_color_manual(values = c("orange","blue"))
+ggplot2::ggsave("./Analysis/Plots/RT_by_condition.png",
+                sd_by_condition,
+                width = 8.5,
+                height = 5.7)
 
+# Slopes
+slopeData <- summaryData2 %>% 
+  group_by(participant,foreperiod,condition) %>% 
+  summarise(meanRT=mean(meanRT)) %>%
+  ungroup() %>%
+  group_by(participant, condition) %>%
+  nest(data = c(foreperiod, meanRT)) %>% # Nest data frames in columns for each row combination of values
+  mutate(fit = map(data, ~ lm(meanRT ~ foreperiod, data = .)), # fit linear model for each nested dataset
+         params = map(fit, tidy)) %>%
+  ungroup() %>%
+  unnest(c(params)) %>% # transform nested parameters to columns
+  select(participant, condition, term, estimate) %>%
+  # creates all combinations of levels for each factor inputted as argument, regardless of whether they appear in the data
+  complete(participant, term, fill = list(estimate = 0)) %>%
+  pivot_wider(names_from = term,
+              values_from = estimate) %>% 
+  clean_names() %>% # remove non-ascii symbols from names
+  rename(foreperiod=foreperiod2_8)
+
+# Boxplot of slopes
+ggplot(data = slopeData, aes(x = condition, y = foreperiod)) +
+  geom_jitter(aes(color = condition), alpha = 0.5) +
+  geom_boxplot(aes(fill = condition)) +
+  scale_fill_manual(values = c("orange", "blue")) +
+  scale_color_manual(values = c("orange", "blue"))
+
+#=========== 2.1.2 Sequential effects =============
 # Sequential effects aggregated across conditions
 ggplot(data = summaryData2,
        aes(x = foreperiod,
@@ -777,45 +784,6 @@ ggsave("./Analysis/Plots/seqEff.tiff",
        height = 23.32,
        units = "cm")
 
-# Separated by FP n-1 em portugues
-ggplot(data = summaryData2 %>%
-         group_by(participant, foreperiod, condition, oneBackFP) %>%
-         summarise(meanRT = mean(meanRT)),
-       aes(x = foreperiod,
-           y = meanRT,
-           color = condition)) +
-  geom_jitter(height = 0, width = 0.30, size = 3.5, alpha = 0.5) +
-  stat_summary(fun = "mean", geom = "point", size = 1.5) +
-  stat_summary(fun = "mean", geom = "line", linewidth = 3.9, aes(group = condition)) +
-  stat_summary(fun.data = "mean_cl_boot", linewidth = 3.7, width = 0.1, geom = "errorbar") +
-  labs(title = "Experimento 4: efeitos sequenciais",
-    x = "FP (s)",
-       y = "TR Médio (s)",
-       color = "Condição") +
-  theme(plot.title = element_text(size = rel(2.0), hjust = 0.5, margin = margin(t = 0, r = 0, b = 25, l = 0)),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        strip.background = element_blank(),
-        strip.text = element_text(size = rel(2.0)),
-        axis.title = element_text(size = rel(2.0)),
-        axis.title.x = element_text(margin = margin(t = 20, r = 0, b = 2.75, l = 0)),
-        axis.title.y = element_text(margin = margin(t = 0, r = 20, b = 0, l = 0)),
-        axis.text = element_text(size = rel(1.7)),
-        legend.title = element_text(size = rel(1.8)),
-        legend.text = element_text(size = rel(1.6)),
-        legend.key = element_blank(),
-        legend.box.spacing = unit(0, "pt"),
-        legend.margin = margin(5.5, 5.5, 5.5, 1)) +
-  facet_wrap(~oneBackFP,
-             labeller = as_labeller(c(`1` = "FP[n-1] == 1.0",
-                                      `2.8` = "FP[n-1] == 2.8"),
-                                    default = label_parsed)) +
-  scale_color_manual(values = c("orange", "blue"), labels = c("Externa", "Ação"))
-ggsave("./Analysis/Plots/seqEff_port.tiff",
-       width = 35,
-       height = 23.32,
-       units = "cm")
 
 
 # Differences by condition
@@ -829,328 +797,6 @@ ggplot(data = summaryData2,
   facet_wrap(~ foreperiod) +
   scale_color_manual(values = c("orange", "blue"))
 
-# SD by FP and condition
-sd_by_condition <- ggplot(data = data2 %>%
-                            group_by(participant, foreperiod, condition) %>%
-                            summarise(sdRT = sd(RT)),
-                          aes(x = foreperiod,
-                              y = sdRT,
-                              color = condition)) +
-  stat_summary(fun = "mean", geom = "point") +
-  stat_summary(fun = "mean", geom = "line", linewidth = 1, aes(group = condition)) +
-  stat_summary(fun.data = "mean_cl_boot", width = 0.1, geom = "errorbar") +
-  labs(title = "RT by FP and condition",
-       x = "Foreperiod (s)", 
-       y = "SD RT (s)",
-       color = "Condition") +
-  theme(plot.title = element_text(size = 14, hjust = 0.5),
-        panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank()) +
-  scale_color_manual(values = c("orange","blue"))
-ggplot2::ggsave("./Analysis/Plots/RT_by_condition.png",
-                sd_by_condition,
-                width = 8.5,
-                height = 5.7)
-
-
-
-#==========================================================================================#
-#======================================= 3. ANOVAs =========================================
-#==========================================================================================#
-
-# Set constrasts for variables used in ANOVAs
-contrasts(summaryData$foreperiod) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
-contrasts(summaryData$condition) <- c(-1/2, 1/2)
-contrasts(summaryData$oneBackFP) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
-
-contrasts(summaryData2$foreperiod) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
-contrasts(summaryData2$condition) <- c(-1/2, 1/2)
-contrasts(summaryData2$oneBackFP) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
-
-contrasts(summaryDataAll$foreperiod) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
-contrasts(summaryDataAll$condition) <- c(-1/2, 1/2)
-contrasts(summaryDataAll$oneBackFP) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
-
-#==================== 3.1. FP x RT by condition ======================
-#================ 3.1.1. RT =================
-
-
-# Run repeated-measures anova
-fpAnova <- aov_ez(id = "participant",
-       dv = "meanRT",
-       data = summaryData2,
-       within = c("foreperiod", "condition"))
-
-### Check assumptions
-
-# Sphericity
-check_sphericity(fpAnova)
-
-fpAnova_plot <- afex_plot(fpAnova, x = 'foreperiod', trace = 'condition', error = 'within')
-
-# Normality of residuals
-is_norm <- check_normality(fpAnova)
-
-plot(is_norm)
-
-plot(is_norm, type = "qq")
-plot(is_norm, type = "qq", detrend = TRUE)
-
-testnormality = function(dfr) return(shapiro.test(dfr$invRT)$p.value)
-p = as.vector(by(data, data$ID, testnormality))
-names(p) = levels(data$ID)
-names(p[p < 0.05])
-
-
-# Try transformations
-invfpAnova <- aov_ez(id = "participant",
-                  dv = "meanInvRT",
-                  data = summaryData2,
-                  within = c("foreperiod", "condition"))
-
-### Check assumptions
-
-# Sphericity
-check_sphericity(invfpAnova)
-
-# Normality of residuals
-is_norm <- check_normality(invfpAnova)
-
-plot(is_norm)
-
-plot(is_norm, type = 'qq')
-
-plot(is_norm, type = 'qq', detrend = TRUE)
-
-# using 1/RT does not solve the problem
-
-logfpAnova <- aov_ez(id = "participant",
-                     dv = "meanLogRT",
-                     data = summaryData2,
-                     within = c("foreperiod", "condition"))
-
-
-### Check assumptions
-
-# Sphericity
-check_sphericity(logfpAnova)
-
-# Normality of residuals
-is_norm <- check_normality(logfpAnova)
-
-plot(is_norm)
-
-plot(is_norm, type = 'qq')
-
-plot(is_norm, type = 'qq', detrend = TRUE)
-
-# The log-transform does not solve the problem either
-
-fpregression <- lm(meanRT ~ condition * foreperiod, data = summaryData)
-summary(fpregression)
-anova(fpregression)
-
-logfpregression <- lm(meanRT ~ condition * logFP, data = summaryData)
-anova(logfpregression)
-
-#================ 3.1.2. Accuracy =================
-ggplot(data = summaryDataAll,
-       aes(x = foreperiod,
-           y = meanAcc,
-           color = condition)) +
-  labs(title = "Accuracy (proportion of correct responses)",
-       x = "Foreperiod",
-       y = "Mean Acc" ) +
-  stat_summary(fun = "mean", geom = "point", size = 1.8) +
-  stat_summary(fun = "mean", geom = "line", aes(group = condition), linewidth = 0.8) +
-  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", linewidth = 0.7, width = 0.05) +
-  theme(plot.title = element_text(size = 14, hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.2)),
-        axis.title = element_text(size = rel(1.2))) +
-  scale_color_manual(values = c("orange", "blue"))
-ggsave("./Analysis/Plots/acc_by_condition.png",
-       width = 7.5,
-       height = 5)
-
-# ============ 3.1.2. Fit models separately for external condition (safety check) ====================
-logfpAnovaExt <- aov_ez(id = "ID",
-                     dv = "meanLogRT",
-                     data = summaryData2[summaryData2$condition=='external',],
-                     within = c("foreperiod"))
-
-# Sphericity
-check_sphericity(logfpAnovaExt)
-
-# Normality of residuals
-is_norm <- check_normality(logfpAnovaExt)
-
-plot(is_norm)
-
-plot(is_norm, type = 'qq')
-
-plot(is_norm, type = 'qq', detrend = TRUE)
-
-
-# Effect is significant
-
-logfpAnovaExt2 <- aov_ez(id = "ID",
-                      dv = "meanLogRT",
-                      data = summaryData2[summaryData2$condition=='external',],
-                      within = c("logFP"))
-
-# Effect is significant
-
-#============================== 3.2. Sequential effects ================================================
-
-#============= 3.2.1. RT ==================
-# 2.2.1. Anova for FP n-1
-seqEffAnova <- aov_ez(id = "participant",
-                  dv = "meanRT",
-                  data = summaryData2,
-                  within = c("foreperiod", "condition", "oneBackFP"))
-
-logSeqEffAnova <- aov_ez(id = "participant",
-                      dv = "meanLogRT",
-                      data = summaryData2,
-                      within = c("foreperiod", "condition", "oneBackFP"))
-
-nice(seqEffAnova,
-     correction='none')
-                  
-nice(logSeqEffAnova,
-     correction = "none")
-
-# 2.2.3. FP n-2
-ggplot(data = summaryData2,
-       aes(x = foreperiod,
-           y = meanRT,
-           color = twoBackFP)) +
-  stat_summary(fun = "mean", geom = "point", size = 1.5) +
-  stat_summary(fun = "mean", geom = "line", linewidth = 0.6, aes(group = twoBackFP)) +
-  stat_summary(fun.data = "mean_cl_boot", size = 0.3, width = 0.05, geom = "errorbar") +
-  labs(x = "Foreperiod",
-       y = "Mean RT",
-       color = "FP n-2") +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.5)),
-        axis.title = element_text(size = rel(1.5))) +
-  facet_wrap(~condition) +
-  scale_color_manual(values = c('blue','orange','green', 'magenta'))
-
-twoBackAnova <- aov_ez(id = "ID",
-                      dv = "meanRT",
-                      data = summaryData2,
-                      within = c("foreperiod", "condition", "twoBackFP"))
-
-nice(twoBackAnova,
-     correction = "none")
-
-ntworegression <- lm(meanRT ~ foreperiod * oneBackFP * twoBackFP, 
-                     data = summaryData)
-summary(ntworegression)
-anova(ntworegression)
-Anova(ntworegression, type = "II")
-
-# Effects of previous orientation
-ggplot(data = summaryData2,
-       aes(x = foreperiod,
-           y = meanRT,
-           color=prevOri)) +
-  stat_summary(fun = "mean", geom = "point", size = 1.5) +
-  stat_summary(fun = "mean", geom = "line", linewidth = 0.8, aes(group = prevOri)) +
-  stat_summary(fun.data = "mean_cl_boot", size = 0.8, width = 0.2, geom = "errorbar") +
-  labs(x = "Foreperiod",
-       y = "Mean RT",
-       color = "Previous Orientation") +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.5)),
-        axis.title = element_text(size = rel(1.5))) +
-  facet_wrap(~condition) +
-  scale_color_manual(values = c('blue', 'orange'))
-
-ggplot(data = summaryData2,
-       aes(x = foreperiod,
-           y = meanRT,
-           color=seqOri)) +
-  stat_summary(fun = "mean", geom = "point", size = 1.5) +
-  stat_summary(fun = "mean", geom = "line", linewidth = 0.8, aes(group = seqOri)) +
-  stat_summary(fun.data = "mean_cl_boot", size = 0.8, width = 0.2, geom = "errorbar") +
-  labs(x = "Foreperiod",
-       y = "Mean RT",
-       color = "Previous Orientation") +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.5)),
-        axis.title = element_text(size = rel(1.5))) +
-  facet_wrap(~condition) +
-  scale_color_manual(values = c('blue', 'orange'))
-
-
-#============= 3.2.2. Accuracy =================
-ggplot(data = summaryDataAll,
-       aes(x = foreperiod,
-           y = meanAcc,
-           color = oneBackFP)) +
-  labs(title = "Accuracy (proportion of correct responses)",
-       x = "Foreperiod",
-       y = "Mean Acc",
-       color = "FP n-1") +
-  stat_summary(fun = "mean", geom = "point", size = 1.8) +
-  stat_summary(fun = "mean", geom = "line", aes(group = oneBackFP), linewidth = 0.8) +
-  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", linewidth = 0.7, width = 0.05) +
-  theme(plot.title = element_text(size = 14, hjust = 0.5),
-        panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.2)),
-        axis.title = element_text(size = rel(1.2))) +
-  scale_color_manual(values = c("orange", "blue", "green", "magenta")) +
-  facet_wrap(~ condition)
-ggsave("./Analysis/Plots/seqeff_by_condition.png",
-       width = 7.5,
-       height = 5)
-
-ggplot(data = summaryDataAll) +
-  geom_histogram(aes(x = meanAcc)) +
-  facet_grid(foreperiod ~ condition)
-
-AccAnova <- aov_ez(id = "ID",
-                   dv = "meanAcc",
-                   data = summaryDataAll,
-                   within = c("foreperiod", "condition", "oneBackFP"))
-
-# ============ 3.2.2. Fit models separately for external condition (safety check) ====================
-seqEffAnovaExt <- aov_ez(id = "ID",
-                     dv = "meanLogRT",
-                     data = summaryData2[summaryData2$condition=='external',],
-                     within = c("foreperiod", "oneBackFP"))
-
-# Effect of FP is significant
-
-seqEffAnovaExt2 <- aov_ez(id = "ID",
-                     dv = "meanLogRT",
-                     data = summaryData2[summaryData2$condition=='external',],
-                     within = c("logFP", "oneBackFP"))
-
-# Effect of FP is significant
-
-# Compare full and reduced models
-summary(logfpAnovaExt, correction = 'none')
-summary(seqEffAnovaExt, correction = 'none')
-
-summary(logfpAnovaExt2, correction = 'none')
-summary(seqEffAnovaExt2, correction = 'none')
-
-#=================== 3.3 Sequential effects with difference between current and previous FP ============
 # Using value of difference as variable
 ggplot(data = summaryData2,
        aes(x = foreperiod,
@@ -1198,52 +844,45 @@ ggplot(data = summaryData2,
   scale_color_manual(values = c("orange","blue")) 
 
 
-# lm with difference between the durations of FPn and FPn-1 as regressor
-fpDiffRegression <- lm(meanRT ~ foreperiod * condition * oneBackFPDiff,
-                       data = summaryData)
-summary(fpDiffRegression)
-anova(fpDiffRegression)
-
-
-ggplot(data = summaryData2,
-       aes(x = oneBackFPDiff,
-           y = meanSeqEff)) +
-  stat_summary(fun = 'mean', geom = 'point')
-
-ggplot(data = summaryData2,
-       aes(x = foreperiod,
-           y = meanSeqEff)) +
-  stat_summary(fun = 'mean', geom = 'point')
-
-# ============ 3.3.2. Fit models separately for external condition (safety check) ====================
-fpDiffAnovaExt <- aov_ez(id = "ID",
-                     dv = "meanLogRT",
-                     data = summaryData2[summaryData2$condition=='external',],
-                     within = c("foreperiod", "oneBackFPDiff"))
-
-# Error because there are empty cells
-
-logfpAnova2 <- aov_ez(id = "ID",
-                      dv = "meanLogRT",
-                      data = summaryData2[summaryData2$condition=='external',],
-                      within = c("logFP", "oneBackFPDiff"))
-
-# Error because there are empty cells
-
-#=============================== 3.4 Orientation ===================================
-
-# RT by alternation vs repetition
+# FP n-2
 ggplot(data = summaryData2,
        aes(x = foreperiod,
            y = meanRT,
-           color = seqOri)) +
-  stat_summary(fun = "mean", geom = "point") +
-  stat_summary(fun = "mean", geom = "line", linewidth = 1, aes(group = seqOri)) +
-  stat_summary(fun.data = "mean_cl_boot", width = 0.2, geom = "errorbar") +
-  theme(panel.grid.major = element_blank(), 
+           color = twoBackFP)) +
+  stat_summary(fun = "mean", geom = "point", size = 1.5) +
+  stat_summary(fun = "mean", geom = "line", linewidth = 0.6, aes(group = twoBackFP)) +
+  stat_summary(fun.data = "mean_cl_boot", size = 0.3, width = 0.05, geom = "errorbar") +
+  labs(x = "Foreperiod",
+       y = "Mean RT",
+       color = "FP n-2") +
+  theme(panel.grid.major = element_blank(),
         panel.grid.minor = element_blank(),
-        panel.background = element_blank()) +
+        panel.background = element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5))) +
+  facet_wrap(~condition) +
+  scale_color_manual(values = c('green', 'magenta'))
+
+#============== 2.1.3. RT by orientation ==============
+# Effects of previous orientation
+ggplot(data = summaryData2,
+       aes(x = foreperiod,
+           y = meanRT,
+           color=prevOri)) +
+  stat_summary(fun = "mean", geom = "point", size = 1.5) +
+  stat_summary(fun = "mean", geom = "line", linewidth = 0.8, aes(group = prevOri)) +
+  stat_summary(fun.data = "mean_cl_boot", linewidth = 0.8, width = 0.2, geom = "errorbar") +
+  labs(x = "Foreperiod",
+       y = "Mean RT",
+       color = "Previous Orientation") +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5))) +
+  facet_wrap(~condition) +
   scale_color_manual(values = c("lightgoldenrod1","indianred2"))
+
 
 # RT by alternation vs repetition and condition
 ggplot(data = summaryData2,
@@ -1323,6 +962,319 @@ ggplot(data = summaryData2,
 ggsave("./Analysis/Plots/RT_by_orientation_condition.png",
        width= 13.4,
        height = 10)
+
+#============== 2.2. Accuracy ================
+#======= 2.2.1. Mean acc by FP and condition =======
+
+ggplot(data = summaryDataAcc,
+       aes(x = foreperiod,
+           y = meanAcc,
+           color = condition)) +
+  labs(title = "Accuracy (proportion of correct responses)",
+       x = "Foreperiod",
+       y = "Mean Acc" ) +
+  stat_summary(fun = "mean", geom = "point", size = 1.8) +
+  stat_summary(fun = "mean", geom = "line", aes(group = condition), linewidth = 0.8) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", linewidth = 0.7, width = 0.05) +
+  theme(plot.title = element_text(size = 14, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(size = rel(1.2)),
+        axis.title = element_text(size = rel(1.2))) +
+  scale_color_manual(values = c("orange", "blue"))
+ggsave("./Analysis/Plots/acc_by_condition.png",
+       width = 7.5,
+       height = 5)
+
+ggplot(data = summaryDataAcc) +
+  geom_histogram(aes(x = meanAcc)) +
+  facet_grid(foreperiod ~ condition)
+
+error_by_condition <- ggplot(data = summaryDataAcc %>%
+                               group_by(ID, foreperiod, condition) %>%
+                               summarise(errorRate = mean(errorRate)),
+                             aes(x = foreperiod,
+                                 y = errorRate,
+                                 color = condition)) +
+  geom_jitter(height = 0, width = 0.15, alpha = 0.5) +
+  stat_summary(fun = "mean", geom = "point") +
+  stat_summary(fun = "mean", geom = "line", linewidth = 1.4, aes(group = condition)) +
+  stat_summary(fun.data = "mean_se", linewidth = 1.2, width = 0.1, geom = "errorbar") +
+  labs(x = "FP (s)",
+       y = "Mean Error Rate",
+       color = "Condition",
+       title = "Error Rate") +
+  scale_color_manual(values = c("orange", "blue"),
+                     label = c("External", "Action")) +
+  theme(plot.title = element_text(hjust = 0.5, size = 14),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(size = rel(1.5)),
+        axis.title = element_text(size = rel(1.5)),
+        legend.text = element_text(size = rel(1.2)),
+        legend.title = element_text(size = rel(1.5)),
+        legend.key = element_blank(),
+        legend.box.spacing = unit(0, "pt"),
+        legend.margin = margin(5.5, 5.5, 5.5, 1),
+        plot.margin = unit(c(5.5, 5.5, 5.5, 1), "pt"))
+ggsave("./Analysis/Plots/error_by_condition.pdf",
+       error_by_condition,
+       width = 7.7,
+       height = 5.8)
+
+#======== 2.2.2. Sequential effects ========
+ggplot(data = summaryDataAcc,
+       aes(x = foreperiod,
+           y = meanAcc,
+           color = oneBackFP)) +
+  labs(title = "Accuracy (proportion of correct responses)",
+       x = "Foreperiod",
+       y = "Mean Acc",
+       color = "FP n-1") +
+  stat_summary(fun = "mean", geom = "point", size = 1.8) +
+  stat_summary(fun = "mean", geom = "line", aes(group = oneBackFP), linewidth = 0.8) +
+  stat_summary(fun.data = "mean_cl_boot", geom = "errorbar", linewidth = 0.7, width = 0.05) +
+  theme(plot.title = element_text(size = 14, hjust = 0.5),
+        panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        panel.background = element_blank(),
+        axis.text = element_text(size = rel(1.2)),
+        axis.title = element_text(size = rel(1.2))) +
+  scale_color_viridis(discrete = TRUE, end = 0.90) +
+  facet_wrap(~ condition)
+ggsave("./Analysis/Plots/seqeff_by_condition.png",
+       width = 7.5,
+       height = 5)
+
+#==========================================================================================#
+#======================================= 3. ANOVAs =========================================
+#==========================================================================================#
+
+# Set constrasts for variables used in ANOVAs
+contrasts(summaryData$foreperiod) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
+contrasts(summaryData$condition) <- c(-1/2, 1/2)
+contrasts(summaryData$oneBackFP) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
+
+contrasts(summaryData2$foreperiod) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
+contrasts(summaryData2$condition) <- c(-1/2, 1/2)
+contrasts(summaryData2$oneBackFP) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
+
+contrasts(summarydataAcc$foreperiod) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
+contrasts(summarydataAcc$condition) <- c(-1/2, 1/2)
+contrasts(summarydataAcc$oneBackFP) <- contr.treatment(4)-matrix(rep(1/4,12),ncol=3)
+
+#==================== 3.1. FP x RT by condition ======================
+#================ 3.1.1. RT =================
+
+
+# Run repeated-measures anova
+fpAnova <- aov_ez(id = "participant",
+       dv = "meanRT",
+       data = summaryData2,
+       within = c("foreperiod", "condition"))
+
+### Check assumptions
+
+# Sphericity
+check_sphericity(fpAnova)
+
+fpAnova_plot <- afex_plot(fpAnova, x = 'foreperiod', trace = 'condition', error = 'within')
+
+# Normality of residuals
+is_norm <- check_normality(fpAnova)
+
+plot(is_norm)
+
+plot(is_norm, type = "qq")
+plot(is_norm, type = "qq", detrend = TRUE)
+
+testnormality = function(dfr) return(shapiro.test(dfr$RT)$p.value)
+p = as.vector(by(data, data$participant, testnormality))
+names(p) = levels(data$participant)
+names(p[p < 0.05])
+
+
+# Try transformations
+invfpAnova <- aov_ez(id = "participant",
+                  dv = "meanInvRT",
+                  data = summaryData2,
+                  within = c("foreperiod", "condition"))
+
+### Check assumptions
+
+# Sphericity
+check_sphericity(invfpAnova)
+
+# Normality of residuals
+is_norm <- check_normality(invfpAnova)
+
+plot(is_norm)
+
+plot(is_norm, type = 'qq')
+
+plot(is_norm, type = 'qq', detrend = TRUE)
+
+# using 1/RT does not solve the problem of non-normality
+
+logfpAnova <- aov_ez(id = "participant",
+                     dv = "meanLogRT",
+                     data = summaryData2,
+                     within = c("foreperiod", "condition"))
+
+
+### Check assumptions
+
+# Sphericity
+check_sphericity(logfpAnova)
+
+# Normality of residuals
+is_norm <- check_normality(logfpAnova)
+
+plot(is_norm)
+
+plot(is_norm, type = 'qq')
+
+plot(is_norm, type = 'qq', detrend = TRUE)
+
+# The log-transform does not solve the problem either
+
+#================ 3.1.2. Accuracy =================
+
+AccAnova <- aov_ez(id = "ID",
+                      dv = "meanAcc",
+                      data = summaryDataAcc,
+                      within = c("foreperiod", "condition"))
+
+
+# ============ 3.1.2. Fit models separately for external condition (safety check) ====================
+logfpAnovaExt <- aov_ez(id = "ID",
+                     dv = "meanLogRT",
+                     data = summaryData2[summaryData2$condition=='external',],
+                     within = c("foreperiod"))
+
+# Sphericity
+check_sphericity(logfpAnovaExt)
+
+# Normality of residuals
+is_norm <- check_normality(logfpAnovaExt)
+
+plot(is_norm)
+
+plot(is_norm, type = 'qq')
+
+plot(is_norm, type = 'qq', detrend = TRUE)
+
+
+# Effect is significant
+
+logfpAnovaExt2 <- aov_ez(id = "ID",
+                      dv = "meanLogRT",
+                      data = summaryData2[summaryData2$condition=='external',],
+                      within = c("logFP"))
+
+# Effect is significant
+
+#============================== 3.2. Sequential effects ================================================
+
+#============= 3.2.1. RT ==================
+# 2.2.1. Anova for FP n-1
+seqEffAnova <- aov_ez(id = "participant",
+                  dv = "meanRT",
+                  data = summaryData2,
+                  within = c("foreperiod", "condition", "oneBackFP"))
+
+logSeqEffAnova <- aov_ez(id = "participant",
+                      dv = "meanLogRT",
+                      data = summaryData2,
+                      within = c("foreperiod", "condition", "oneBackFP"))
+
+nice(seqEffAnova,
+     correction='none')
+                  
+nice(logSeqEffAnova,
+     correction = "none")
+
+# 2.2.2. FP n-2
+twoBackAnova <- aov_ez(id = "ID",
+                       dv = "meanRT",
+                       data = summaryData2,
+                       within = c("foreperiod", "condition", "twoBackFP"))
+
+nice(twoBackAnova,
+     correction = "none")
+
+ntworegression <- lm(meanRT ~ foreperiod * oneBackFP * twoBackFP, 
+                     data = summaryData)
+summary(ntworegression)
+anova(ntworegression)
+Anova(ntworegression, type = "II")
+
+
+#============= 3.2.2. Accuracy ================
+AccSeqAnova <- aov_ez(id = "ID",
+                   dv = "meanAcc",
+                   data = summaryDataAcc,
+                   within = c("foreperiod", "condition", "oneBackFP"))
+
+# ============ 3.2.2. Fit models separately for external condition (safety check) ====================
+seqEffAnovaExt <- aov_ez(id = "ID",
+                     dv = "meanLogRT",
+                     data = summaryData2[summaryData2$condition=='external',],
+                     within = c("foreperiod", "oneBackFP"))
+
+# Effect of FP is significant
+
+seqEffAnovaExt2 <- aov_ez(id = "ID",
+                     dv = "meanLogRT",
+                     data = summaryData2[summaryData2$condition=='external',],
+                     within = c("logFP", "oneBackFP"))
+
+# Effect of FP is significant
+
+# Compare full and reduced models
+summary(logfpAnovaExt, correction = 'none')
+summary(seqEffAnovaExt, correction = 'none')
+
+summary(logfpAnovaExt2, correction = 'none')
+summary(seqEffAnovaExt2, correction = 'none')
+
+#=================== 3.3 Sequential effects with difference between current and previous FP ============
+
+# lm with difference between the durations of FPn and FPn-1 as regressor
+fpDiffRegression <- lm(meanRT ~ foreperiod * condition * oneBackFPDiff,
+                       data = summaryData)
+summary(fpDiffRegression)
+anova(fpDiffRegression)
+
+
+ggplot(data = summaryData2,
+       aes(x = oneBackFPDiff,
+           y = meanSeqEff)) +
+  stat_summary(fun = 'mean', geom = 'point')
+
+ggplot(data = summaryData2,
+       aes(x = foreperiod,
+           y = meanSeqEff)) +
+  stat_summary(fun = 'mean', geom = 'point')
+
+# ============ 3.3.2. Fit models separately for external condition (safety check) ====================
+fpDiffAnovaExt <- aov_ez(id = "ID",
+                     dv = "meanLogRT",
+                     data = summaryData2[summaryData2$condition=='external',],
+                     within = c("foreperiod", "oneBackFPDiff"))
+
+# Error because there are empty cells
+
+logfpAnova2 <- aov_ez(id = "ID",
+                      dv = "meanLogRT",
+                      data = summaryData2[summaryData2$condition=='external',],
+                      within = c("logFP", "oneBackFPDiff"))
+
+# Error because there are empty cells
+
+#=============================== 3.4 Orientation ===================================
 
 # No apparent difference
 oriAnova <- aov_ez(id = 'ID',
@@ -1449,38 +1401,6 @@ logfpAnovaExt2 <- aov_ez(id = "ID",
 # Effect is significant
 
 #============================== 6.2. Sequential effects ================================================
-# Sequential effects (aggregated across conditions)
-ggplot(data = summaryData,
-       aes(x = foreperiod,
-           y = meanRT,
-           color=oneBackFP)) +
-  stat_summary(fun = "mean", geom = "point", size = 1.5) +
-  stat_summary(fun = "mean", geom = "line", size = 0.8, aes(group=oneBackFP)) +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.5)),
-        axis.title = element_text(size = rel(1.5)))+
-  scale_color_manual(values = c('blue','orange','green', 'pink'))
-
-
-# Sequential effects (separated by condition)
-ggplot(data = summaryData,
-       aes(x = foreperiod,
-           y = meanRT,
-           color = oneBackFP)) +
-  stat_summary(fun = "mean", geom = "point", size = 1.5) +
-  stat_summary(fun = "mean", geom = "line", size = 0.8, aes(group = oneBackFP)) +
-  stat_summary(fun.data = "mean_cl_boot", size = 0.8, width = 0.2, geom = "errorbar") +
-  theme(panel.grid.major = element_blank(),
-        panel.grid.minor = element_blank(),
-        panel.background = element_blank(),
-        axis.text = element_text(size = rel(1.5)),
-        axis.title = element_text(size = rel(1.5))) +
-  facet_wrap(~condition) +
-  scale_color_manual(values = c('blue','orange','green', 'pink'))
-
-
 # 2.2.1. Anova for FP n-1
 seqEffAnova <- aov_ez(id = "ID",
                       dv = "meanRT",
@@ -1981,550 +1901,4 @@ seqEffAnovares3 <- aov_ez(id = 'ID',
                           within = c('condition'))
 
 summary(seqEffAnovares4)
-
-#================================= 8. Two-stage regression ================================
-id_list <- unique(data2$ID)
-
-#================= 8.1 FP x FP n-1 ========================
-
-#================= 8.1.1. External ========================
-# FP as numerical 
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numForeperiod * numOneBackFP, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numForeperiod * numOneBackFP, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp
-t.test(params_action[,3]) # fp n-1
-t.test(params_action[,4]) # fp x fp n-1
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp
-t.test(params_external[,3]) # fp n-1
-t.test(params_external[,4]) # fp x fp n-1
-
-# FP as categorical
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ foreperiod * numOneBackFP, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ foreperiod * numOneBackFP, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp 2
-t.test(params_action[,3]) # fp 3
-t.test(params_action[,4]) # fp 4
-t.test(params_action[,5]) # fp n-1
-t.test(params_action[,6]) # fp 2 x fp n-1
-t.test(params_action[,7]) # fp 3 x fp n-1
-t.test(params_action[,8]) # fp 4 x fp n-1
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp 2
-t.test(params_external[,3]) # fp 3
-t.test(params_external[,4]) # fp 4
-t.test(params_external[,5]) # fp n-1
-t.test(params_external[,6]) # fp 2 x fp n-1
-t.test(params_external[,7]) # fp 3 x fp n-1
-t.test(params_external[,8]) # fp 4 x fp n-1
-
-
-# logFP as numerical 
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numLogFP * numOneBackFP, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numLogFP * numOneBackFP, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp
-t.test(params_action[,3]) # fp n-1
-t.test(params_action[,4]) # logfp x fp n-1
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp
-t.test(params_external[,3]) # fp n-1
-t.test(params_external[,4]) # logfp x fp n-1
-
-
-# logFP as categorical
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ logFP * numOneBackFP, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ logFP * numOneBackFP, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp 2
-t.test(params_action[,3]) # logfp 3
-t.test(params_action[,4]) # logfp 4
-t.test(params_action[,5]) # fp n-1
-t.test(params_action[,6]) # logfp 2 x fp n-1
-t.test(params_action[,7]) # logfp 3 x fp n-1
-t.test(params_action[,8]) # logfp 4 x fp n-1
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp 2
-t.test(params_external[,3]) # logfp 3
-t.test(params_external[,4]) # logfp 4
-t.test(params_external[,5]) # fp n-1
-t.test(params_external[,6]) # logfp 2 x fp n-1
-t.test(params_external[,7]) # logfp 3 x fp n-1
-t.test(params_external[,8]) # logfp 4 x fp n-1
-
-
-# FP as numerical using FP only 
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numForeperiod, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numForeperiod, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp
-
-
-
-# FP as categorical using FP only
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ foreperiod, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ foreperiod, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp 2
-t.test(params_action[,3]) # fp 3
-t.test(params_action[,4]) # fp 4
-
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp 2
-t.test(params_external[,3]) # fp 3
-t.test(params_external[,4]) # fp 4
-
-
-# logFP as numerical using logFP only
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numLogFP, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numLogFP, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp
-
-# logFP as categorical
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ logFP, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ logFP, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp 2
-t.test(params_action[,3]) # logfp 3
-t.test(params_action[,4]) # logfp 4
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp 2
-t.test(params_external[,3]) # logfp 3
-t.test(params_external[,4]) # logfp 4
-
-
-#========= 8.1.2. Action =============
-
-#=============================== 8.2. FP x FP diff ====================================
-
-#========= 8.2.1. External ============
-
-# FP as numerical 
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numForeperiod * numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numForeperiod * numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp
-t.test(params_action[,3]) # fp diff
-t.test(params_action[,4]) # fp x fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp
-t.test(params_external[,3]) # fp diff
-t.test(params_external[,4]) # fp x fp diff
-
-
-# FP as categorical
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ foreperiod * numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ foreperiod * numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp 2
-t.test(params_action[,3]) # fp 3
-t.test(params_action[,4]) # fp 4
-t.test(params_action[,5]) # fp diff
-t.test(params_action[,6]) # fp 2 x fp diff
-t.test(params_action[,7]) # fp 3 x fp diff
-t.test(params_action[,8]) # fp 4 x fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp 2
-t.test(params_external[,3]) # fp 3
-t.test(params_external[,4]) # fp 4
-t.test(params_external[,5]) # fp diff
-t.test(params_external[,6]) # fp 2 x fp diff
-t.test(params_external[,7]) # fp 3 x fp diff
-t.test(params_external[,8]) # fp 4 x fp diff
-
-
-# logFP as numerical 
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numLogFP * numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numLogFP * numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp
-t.test(params_action[,3]) # fp diff
-t.test(params_action[,4]) # logfp x fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp
-t.test(params_external[,3]) # fp diff
-t.test(params_external[,4]) # logfp x fp diff
-
-
-# logFP as categorical
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ logFP * numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ logFP * numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp 2
-t.test(params_action[,3]) # logfp 3
-t.test(params_action[,4]) # logfp 4
-t.test(params_action[,5]) # fp diff
-t.test(params_action[,6]) # logfp 2 x fp diff
-t.test(params_action[,7]) # logfp 3 x fp diff
-t.test(params_action[,8]) # logfp 4 x fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp 2
-t.test(params_external[,3]) # logfp 3
-t.test(params_external[,4]) # logfp 4
-t.test(params_external[,5]) # fp diff
-t.test(params_external[,6]) # logfp 2 x fp diff
-t.test(params_external[,7]) # logfp 3 x fp diff
-t.test(params_external[,8]) # logfp 4 x fp diff
-
-
-# FP as numerical without interaction 
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numForeperiod + numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numForeperiod + numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp
-t.test(params_action[,3]) # fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp
-t.test(params_external[,3]) # fp diff
-
-# FP as categorical without interaction
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ foreperiod + numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ foreperiod + numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # fp 2
-t.test(params_action[,3]) # fp 3
-t.test(params_action[,4]) # fp 4
-t.test(params_action[,5]) # fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # fp 2
-t.test(params_external[,3]) # fp 3
-t.test(params_external[,4]) # fp 4
-t.test(params_external[,5]) # fp diff
-
-
-# logFP as numerical without interaction   
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ numLogFP + numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ numLogFP + numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp
-t.test(params_action[,3]) # fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp
-t.test(params_external[,3]) # fp diff
-
-
-# logFP as categorical without interaction
-params_action <- list(length = length(id_list))
-params_external <- list(length = length(id_list))
-
-for(id in 1:length(id_list)) {
-  
-  sub <- id_list[id]
-  sub_data <- data2[data2$ID==sub,]
-  
-  model_action <- lm(logRT ~ logFP + numOneBackFPDiff, data = sub_data[sub_data$condition == 'action',])
-  model_external <- lm(logRT ~ logFP + numOneBackFPDiff, data = sub_data[sub_data$condition == 'external', ])
-  
-  params_action[[id]] <- model_action$coefficients
-  params_external[[id]] <- model_external$coefficients
-}
-
-params_action <- matrix(unlist(params_action), nrow = length(id_list), 
-                        ncol = length(model_action$coefficients), byrow = T)
-params_external <- matrix(unlist(params_external), nrow = length(id_list), 
-                          ncol = length(model_external$coefficients), byrow = T)
-
-t.test(params_action[,1]) # intercept
-t.test(params_action[,2]) # logfp 2
-t.test(params_action[,3]) # logfp 3
-t.test(params_action[,4]) # logfp 4
-t.test(params_action[,5]) # fp diff
-
-t.test(params_external[,1]) # intercept
-t.test(params_external[,2]) # logfp 2
-t.test(params_external[,3]) # logfp 3
-t.test(params_external[,4]) # logfp 4
-t.test(params_external[,5]) # fp diff
 

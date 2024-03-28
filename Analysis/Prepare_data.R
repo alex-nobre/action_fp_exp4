@@ -26,10 +26,17 @@ data <- data %>%
   mutate(seqOri = as.factor(seqOri),
          prevOri = as.factor(prevOri))
 
-# Create column for trial number
+# Create column for total ITI depending on condition
+data <- data %>%
+  mutate(ITITotal = ifelse(condition == 'action', ITI + action_trigger.rt, ITI + extFixationDuration))
+
+# Create column for trial number across the whole experiment and by block
 data <- data %>%
   group_by(participant) %>%
-  mutate(trial = seq(1,n())) %>%
+  mutate(trial = seq(n())) %>%
+  ungroup() %>%
+  group_by(participant, block) %>%
+  mutate(trial_bl = seq(n())) %>%
   ungroup()
 
 # Remove trials without n-1 FP values (i.e., first of each block)
@@ -43,6 +50,12 @@ dataAcc <- data
 data <- data %>%
   filter(!is.na(RT), Acc == 1)
 
+# Create variable for error rate
+dataAcc$Error <- abs(dataAcc$Acc - 1)
+
+# Factor version of accuracy/error rate
+dataAcc$acc_result <- as.factor(dataAcc$Acc)
+dataAcc$error_result <- as.factor(dataAcc$Error)
 
 # Remove extreme values
 data <- data %>%
@@ -91,7 +104,8 @@ summaryData <- data %>%
   summarise(meanRT = mean(RT),
             meanLogRT = mean(logRT),
             meanRTzscore = mean(RTzscore),
-            meanInvRT = mean(invRT)) %>% #,
+            meanInvRT = mean(invRT),
+            meanITITotal = mean(ITITotal)) %>% #,
             #meanDelay = mean(delay)) %>%
   ungroup()
 
@@ -102,15 +116,18 @@ summaryData2 <- data2 %>%
   summarise(meanRT = mean(RT),
             meanLogRT = mean(logRT),
             meanRTzscore = mean(RTzscore),
-            meanInvRT = mean(invRT)) %>% #,
+            meanInvRT = mean(invRT),
+            meanITITotal = mean(ITITotal)) %>% #,
             #meanDelay = mean(delay)) %>%
   ungroup()
 
 
-summaryDataAll <- dataAcc %>%
+summaryDataAcc <- dataAcc %>%
   group_by(participant, foreperiod, condition, oneBackFP, Counterbalance, Handedness) %>%
   summarise(meanRT = mean(RT),
-            meanAcc = mean(Acc)) %>% #,
+            meanAcc = mean(Acc),
+            errorRate = mean(Error),
+            meanITITotal = mean(ITITotal)) %>% #,
             #meanDelay = mean(delay)) %>%
   ungroup()
 
