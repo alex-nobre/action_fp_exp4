@@ -273,9 +273,6 @@ oneback_by_cond = emmeans(trimlogfplmm, ~ oneBackFP * condition)
 pairs(oneback_by_cond, simple = "condition")
 
 
-
-
-
 #============ 3.5. Hierarchical entry ===============
 h_trimlogfplmm1 <- mixed(logRT ~ 1 + numForeperiod + (1 | ID),
                          data=data2,
@@ -705,8 +702,11 @@ fpaccglmer <- mixed(formula = error_result ~ foreperiod * condition * oneBackFP 
                     control = glmerControl(optimizer = c("bobyqa"),optCtrl=list(maxfun=2e5)),
                     progress = TRUE,
                     expand_re = FALSE,
+                    return = "merMod",
                     method = "LRT")
 
+
+isSingular(fpaccglmer)
 
 summary(fpaccglmer)
 anova(fpaccglmer)
