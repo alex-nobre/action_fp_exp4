@@ -58,9 +58,14 @@ dataAcc$acc_result <- as.factor(dataAcc$Acc)
 dataAcc$error_result <- as.factor(dataAcc$Error)
 
 # Remove extreme values
+ntrials_before_extrem <- nrow(data)
 data <- data %>%
   filter(RT < 1.0) %>%
   filter(RT > 0.15)
+ntrials_after_extrem <- nrow(data)
+
+# Percentage excluded by extreme values removal
+((ntrials_before_extrem - ntrials_after_extrem)/ntrials_before_extrem)*100
 
 # Transform RT to reduce skew
 data$logRT <- log10(data$RT) # log-transform
@@ -82,6 +87,23 @@ data <- data %>%
          logRTzscore=ifelse(!is.na(RT), compute_zscore(logRT), NA)) %>%
   #filter(abs(logRTzscore) < 3) %>%
   ungroup()
+
+# Percentage excluded by trimming
+((nrow(data)-nrow(data2))/nrow(data))*100
+
+# by participants
+ntrials_by_part <- data |>
+  group_by(participant) |>
+  summarise(ntrials = n())
+
+ntrials2_by_part <- data2 |>
+  group_by(participant) |>
+  summarise(ntrials2 = n())
+
+ntrials12_by_part <- inner_join(ntrials_by_part, ntrials2_by_part) |>
+  mutate(percent_removed = ((ntrials-ntrials2)/ntrials)*100) |>
+  summarise(mean_removed = mean(percent_removed),
+            sd_removed = sd(percent_removed))
 
 ###############################################################
 # Add delay data
@@ -135,3 +157,4 @@ summaryDataAcc <- dataAcc %>%
 #write_csv(data2, "./Analysis/data2.csv")
 #write_csv(summaryData, "./Analysis/summaryData.csv")
 #write_csv(summaryData2, "./Analysis/summaryData2.csv")
+save(data2, file = "./Analysis/data2.Rdata")
