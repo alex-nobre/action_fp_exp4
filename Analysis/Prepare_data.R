@@ -1,6 +1,6 @@
 
 
-# Load necessary packages
+# Load packages
 library(readr)
 library(ggplot2)
 library(magrittr)
@@ -157,4 +157,5 @@ summaryDataAcc <- dataAcc %>%
 #write_csv(data2, "./Analysis/data2.csv")
 #write_csv(summaryData, "./Analysis/summaryData.csv")
 #write_csv(summaryData2, "./Analysis/summaryData2.csv")
+save(data, file = "./Analysis/data.Rdata")
 save(data2, file = "./Analysis/data2.Rdata")

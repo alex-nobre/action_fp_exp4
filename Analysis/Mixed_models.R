@@ -14,8 +14,9 @@ library(data.table)
 library(lattice)
 library(gridExtra)
 library(extrafont)
+library(egg)
 
-# Simple models
+# Linear models
 library(car)
 library(janitor)
 
@@ -190,8 +191,19 @@ fplmm <- mixed(formula =  logRT ~ 1 + foreperiod + condition + foreperiod:condit
                REML=TRUE,
                return = "merMod")
 
+fplmm <- mixed(formula =  log(RT) ~ 1 + foreperiod + condition + foreperiod:condition + oneBackFP + 
+                 foreperiod:oneBackFP + condition:oneBackFP + foreperiod:condition:oneBackFP + 
+                 (1 + condition + foreperiod + foreperiod:condition | participant),
+               data = data2,
+               control = lmerControl(optimizer = c("bobyqa"),optCtrl=list(maxfun=2e5),calc.derivs = FALSE),
+               progress = TRUE,
+               expand_re = TRUE,
+               method =  'S',
+               REML=TRUE,
+               return = "merMod")
 
-
+# Save model for sensitivity analysis
+saveRDS(fplmm, file = "./Analysis/Sensitivity_analysis/fplmm.rds")
 
 #==============================================================================================#
 #==================================== 3. Model assessment ======================================
@@ -200,7 +212,6 @@ fplmm <- mixed(formula =  logRT ~ 1 + foreperiod + condition + foreperiod:condit
 #============= 3.1. Using logRT ===============
 anova(fplmm)
 
-saveRDS(fplmm, file = "./Analysis/Sensitivity_analysis/fplmm.rds")
 
 #Visualize random effects
 dotplot(ranef(fplmm, condVar = TRUE))

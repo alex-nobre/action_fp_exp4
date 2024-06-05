@@ -1,15 +1,27 @@
 
 library(dplyr)
+library(ggplot2)
 library(tidyr)
 library(tibble)
 library(readr)
 library(forcats)
 library(simr)
+library(extrafont)
+library(emmeans)
 
 # Save defaults
 graphical_defaults <- par()
-options_defaults <- options() 
+options_defaults <- options()
 
+# Load fonts from extrafonts
+loadfonts()
+
+# Prepare theme for plots
+source("./Analysis/plot_theme.R")
+theme_set(mytheme)
+
+# emm options
+emm_options(lmer.df = "satterthwaite", lmerTest.limit = 12000)
 
 #==========================================================================#
 #=================== Simular usando o resultado do exp 4 ===================
@@ -67,7 +79,7 @@ simulate_beta <- function(eff_size) {
 pvals_list <- lapply(betas_sim, simulate_beta)
 
 
-#load(file = "./Analysis/pvals_list_1000sim_20betas_positive.Rdata")
+load(file = "./Analysis/Sensitivity_analysis/pvals_list.Rdata")
 power <- sapply(pvals_list, function(x) sum(x < 0.05)/length(x))
 names(power) <- round(betas_sim,4)
 
@@ -75,33 +87,37 @@ plot(round(betas_sim,4), power,
      xlab = "beta value",
      ylab = "power")
 lines(round(betas_sim,4), power)
-abline(v = inter_beta, lty = "dashed")
+abline(v = abs(inter_beta), lty = "dashed")
 abline(h = 0.8)
+
+# Using ggplot
+power_df <- tibble(beta_value = betas_sim,
+                   power = power)
+
+x_labels <- c(betas_sim[c(TRUE, FALSE)], tail(betas_sim, n = 1))
+
+sensitivity_plot <- ggplot(data = power_df, aes(x = beta_value,
+                                                y = power)) +
+  geom_point(size = psz) +
+  geom_smooth(se = FALSE, method = "gam") +
+  #geom_line(linewidth = 0.8, aes(group = 1)) +
+  geom_vline(xintercept = abs(inter_beta), linetype = "dashed") +
+  labs(title = "Power for varying effect sizes",
+       x = "Effect size",
+       y = "Power") +
+  scale_y_continuous(breaks = c(0, 0.20, 0.40, 0.60, 0.80, 1.0)) +
+  scale_x_continuous(breaks = x_labels,
+                     labels = round(x_labels, digits = 3))
+
+ggsave("./Analysis/Sensitivity_analysis/sensitivity_plot.jpg",
+       sensitivity_plot,
+       width = 16,
+       height = 10,
+       units = "cm",
+       dpi = 300)
 
 # function to convert rts to ms
 10^betas_sim
-
-
-xtabs(logRT ~ scaledNumForeperiod, data2)
-xtabs(RT ~ foreperiod, data2)
-
-mean(data2$RT)
-
-by(data2$RT, data2$foreperiod, mean)
-by(data2$logRT, data2$foreperiod, mean)
-by(data2$logRT, data2$scaledNumForeperiod, mean)
-
-
-data3 <- data2 |>
-  mutate(scaledNumForeperiod = round(scaledNumForeperiod,4))
-
-mean(data2[data2$numForeperiod==1,]$logRT) - mean(data2[data2$numForeperiod==1.6,]$logRT)
-mean(data3[data3$scaledNumForeperiod==-0.9091,]$logRT) - mean(data3[data3$scaledNumForeperiod==0.8909,]$logRT)
-
-summary(betas)$coefficients # change in 1 in FP = change of -0.008 in logRT
-
-10^(-0.395-0.0081797726)
-10^-0.0081797726
 
 
 #==================== 2.2. FPn x condition x FPn-1 ====================
